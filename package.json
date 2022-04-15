@@ -1,0 +1,21 @@
+{
+  "name": "erss-project-ph139-hk261",
+  "version": "1.0.0",
+  "description": "Mini_UPS",
+  "main": "app.js",
+  "dependencies": {
+    "express": "^4.17.3",
+    "nodemon": "^2.0.15"
+  },
+  "devDependencies": {},
+  "scripts": {
+      "test": "echo \"Error: no test specified\" && exit 1",
+      "start": "nodemon app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@gitlab.oit.duke.edu:ph139/erss-project-ph139-hk261.git"
+  },
+  "author": "Casper and Harrison",
+  "license": "ISC"
+}
