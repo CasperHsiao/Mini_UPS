@@ -1,9 +1,12 @@
 "use strict";
+
 const express = require("express");
 const app = express();
+
 app.use(express.static("public"));
 app.use(express.urlencoded({extended: true}));
 app.use(express.json());
+
 const SERVER_ERROR = 500;
 const REQUEST_ERROR = 400;
 const PORT_NUM = 8000;
