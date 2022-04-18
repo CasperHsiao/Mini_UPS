@@ -2,7 +2,7 @@
 
 body {
   text-align: center;
-  width: 95%;
+  width: 100%;
   font-family: 'Share Tech Mono', monospace;
   border-style: solid;
   margin-top: 10px;
@@ -34,4 +34,8 @@ footer, #cart-summary, #feedback textarea {
 
 #faq {
   margin-right: 5%;
+}
+
+.login{
+  display:none;
 }

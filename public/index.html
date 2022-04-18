@@ -31,7 +31,7 @@
               <li><a href="#">Contact</a></li> -->
             </ul>
             <ul class="nav navbar-nav navbar-right">
-              <li><a href="#"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+              <li><a id="loginprompt" onclick="login_display()"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
             </ul>
           </div>
         </div>
@@ -43,10 +43,20 @@
       <button id="all">Shop All</button>
       <button id="cart">Cart</button>
     </div> -->
+      <!-- login form -->
+      <form class="login">
+        <div class="input-group">
+          <input type="text" name="username" placeholder="Username" id="username" required>
+          <input type="password" name="password" placeholder="Password" id="password" required>
+          <input type="submit" value="Login">
+          <input type="submit" value="Signup">
+        </div>
+      </form>
+
       <form>
         <div class="input-group">
-          <input type="search" class="form-control" placeholder="Tracking Number"/>
-          <button type="button" id="track-button" style="float:left">Track</button>    
+          <input type="text" placeholder="Tracking Number" required>
+          <input type="submit" value="Track" id="track-button">
         </div>
       </form>
     </body>
@@ -55,10 +65,10 @@
     <footer>
       <div class="footer_class">
         <div id="faq">
-          <h2>FAQ</h2>
+          <h4>FAQ</h4>
         </div>
         <div id="contact">
-          <h2>Contact Us</h2>
+          <h4>Contact Us</h4>
         </div>
       </div>
     </footer>
