@@ -15,18 +15,20 @@ const WORLD_URL = 'localhost';
 const WORLD_PORT_NUM = 12345;
 const upsProto = 'world_ups.proto';
 var WORLD_ID = null;
+/*
 const client = net.connect(WORLD_PORT_NUM, WORLD_URL);
-
+client.on('end', () => {
+    console.log("Disconnected from world");
+});
+*/
+//initializeWorld();
 // ejs view engine
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
 
 
-client.on('end', () => {
-    console.log("Disconnected from world");
-});
 
-initializeWorld();
+
 
 
 // mongoose connection

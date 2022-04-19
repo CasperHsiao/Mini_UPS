@@ -5,21 +5,17 @@ const Account = mongoose.model('Account', AccountSchema);
 const Order = mongoose.model('Order', OrderSchema);
 
 export const signupUser = (req, res) => {
-    Account.findOne({"UserName" : req.body.Username}, (err, account) => {
+    Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
         if (err) {
             res.send(err);
         }
-        
+
         if (account) {
-            console.log("singup_fail");
-            res.render("./pages/index", {login: true , msg: "Username already exists!"});
+            res.render("./pages/index", {login: true , error: true, msg: "Username already exists!"});
         }
         else{
             delete req.body['submitBtn']
-            console.log(req.body)
-
             let newAccount = new Account(req.body);
-            console.log(newAccount);
 
             newAccount.save((err, contact) => {
                 if (err) {
@@ -35,11 +31,22 @@ export const signupUser = (req, res) => {
 
 export const loginUser = (req, res) => {
     console.log("login");
-    Account.findOne({"UserName" : req.body.Username}, (err, account) => {
+    Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
         if (err) {
             res.send(err);
         }
-        res.json(account);
+        
+        if (account) {
+            if(account.Password == req.body.Password){
+                res.render("./pages/personal");
+            }
+            else{ // Incorrect password
+                res.render("./pages/index", {login: true , error: true, msg: "Incorrect password!"});
+            }
+        }
+        else{ // UserName doesn't exist
+            res.render("./pages/index", {login: true , error: true, msg: "Username doesn't exists!"});
+        }
     });
 
     
