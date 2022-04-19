@@ -1,7 +1,13 @@
 import mongoose from 'mongoose';
-import { ContactSchema } from '../models/model';
+import { AccountSchema } from '../models/model';
 
-const Contact = mongoose.model('Contact', ContactSchema);
+const Contact = mongoose.model('Order', AccountSchema);
+
+export const signupUser = (req, res) => {
+    let newUser = new Contact(req.body);
+
+    
+}
 
 export const addnewContact = (req, res) => {
     let newContact = new Contact(req.body);
@@ -15,7 +21,8 @@ export const addnewContact = (req, res) => {
 }
 
 export const getContacts = (req, res) => {
-    Contact.find({}, (err, contact) => {
+    console.log(req.body.UserName)
+    Contact.findOne({"UserName" : req.body.UserName}, (err, contact) => {
         if (err) {
             res.send(err);
         }

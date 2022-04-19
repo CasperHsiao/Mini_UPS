@@ -1,33 +1,41 @@
 import mongoose from 'mongoose';
 
-// var {mongoose} = require('mongoose');
-
 const Schema = mongoose.Schema;
 
-const ContactSchema = new Schema({
-    firstName: {
-        type: String,
-        required: 'Enter a first name'
+const OrderSchema = new Schema({
+    TrackNum: {
+        type: Number,
+        required: 'Enter a tracking number'
     },
-    lastName: {
-        type: String,
-        required: 'Enter a last name'
+    WarehouseID: {
+        type: Number,
+        required: 'Enter a Warehouse ID'
     },
-    // email: {
-    //     type: String
-    // },
-    // company: {
-    //     type: String
-    // },
-    // phone: {
-    //     type: Number
-    // },
-    // created_date: {
-    //     type: Date,
-    //     default: Date.now
-    // }
+    DeliverAddress: {
+        type: String
+    },
+    ItemType: {
+        type: String
+    },
+    Status: {
+        type: String
+    },
+    Priority: {
+        type: Number,
+        default: 1
+    }
 });
 
-module.exports = {
-    ContactSchema
-}
+export const AccountSchema = new Schema({
+    UserName: {
+        type: String,
+        required: 'Enter a username'
+    },
+    Password: {
+        type: String,
+        required: 'Enter a password'
+    },
+    orders: [
+        OrderSchema
+    ],
+});

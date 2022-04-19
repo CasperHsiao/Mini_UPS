@@ -31,7 +31,7 @@
               <li><a href="#">Contact</a></li> -->
             </ul>
             <ul class="nav navbar-nav navbar-right">
-              <li><a id="loginprompt" href="/login"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
+              <li><a id="loginprompt" onclick="login_display()"><span class="glyphicon glyphicon-log-in"></span> Login</a></li>
             </ul>
           </div>
         </div>
@@ -44,16 +44,16 @@
       <button id="cart">Cart</button>
     </div> -->
 
-    <%= usr.Title %>
-
-      <form>
+    
+      <!-- login form -->
+      <form class="login">
         <div class="input-group">
-          <input type="text" placeholder="Tracking Number" required>
-          <input type="submit" value="Track" id="track-button">
+          <input type="text" name="username" placeholder="Username" id="username" required>
+          <input type="password" name="password" placeholder="Password" id="password" required>
+          <input type="submit" value="Login">
+          <input type="submit" value="Signup">
         </div>
       </form>
-    </body>
-   
 
     <footer>
       <div class="footer_class">
