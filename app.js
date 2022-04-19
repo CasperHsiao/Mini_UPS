@@ -146,4 +146,6 @@ async function initializeWorld() {
         console.log(err);
     }
 
+    function connectToWorld() {}
+
 }
