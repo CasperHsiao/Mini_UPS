@@ -2,86 +2,18 @@
 
 body {
   text-align: center;
-  width: 80%;
+  width: 100%;
   font-family: 'Share Tech Mono', monospace;
   border-style: solid;
   margin-top: 10px;
 }
 
-#track-button {
+#track-button, #login-btn, #signup-btn {
     background-color: orange;
 }
 
 body, #contact-us {
   margin: auto;
-}
-
-header nav {
-  border-top: solid;
-  justify-content: center;
-  border-bottom: solid;
-}
-
-header nav, #product-list {
-  flex-wrap: wrap;
-}
-
-header nav, header div, #support, .productContainer, #product-list, .addedProduct,
-  #cart-container {
-  display: flex;
-}
-
-header nav h2 {
-  margin-right: 30px;
-  margin-left: 30px;
-}
-
-#sale {
-  color: red;
-}
-
-header nav, body, #logo {
-  border-width: thin;
-}
-
-h1 {
-  margin-left: 10px;
-  margin-right: auto;
-}
-
-header div button {
-  font-size: 15px;
-  height: 0%;
-  margin: 20px 10px;
-}
-
-header nav button {
-  font-size: 25px;
-  margin: 5px 10px;
-}
-
-#logo {
-  font-size: 100px;
-  margin-top: 20px;
-  margin-bottom: 20px;
-  border: solid;
-}
-
-button {
-  background-color: inherit;
-  font-family: inherit;
-}
-
-button, header fieldset {
-  border: none;
-}
-
-header fieldset button {
-  vertical-align: sub;
-}
-
-header fieldset {
-  text-align: right;
 }
 
 footer {
@@ -92,105 +24,14 @@ footer, #cart-summary, #feedback textarea {
   background-color: black;
 }
 
-footer h2, footer p, .featured .shop, #cart-summary, #feedback textarea, #faq, #success-message {
+.footer_class{
+  text-align:right;
+}
+#contact, #faq {
   color: white;
+  display: inline-block;
 }
 
 #faq {
-  word-wrap: break-word;
-}
-
-#contact-us, .shoePic {
-  width: 50%;
-}
-
-#submit-btn {
-  background-color: grey;
-}
-
-#feedback textarea, #submit-btn{
-  border: solid thin white;
-}
-
-.featured {
-  background-repeat: no-repeat;
-  background-size: contain;
-  background-position: right;
-  border-bottom: thin solid black;
-}
-
-.featured, #cart-summary {
-  text-align: left;
-}
-
-.featured .shop {
-  font-size: 30px;
-  margin-bottom: 40px;
-  margin-left: 40px;
-}
-
-.featured .shop, .product .shop {
-  background-color: grey
-}
-
-.featured .shop, .product, .product .shop {
-  border: thin solid black;
-}
-
-.featured h3 {
-  margin-bottom: 30%;
-  margin-left: 50px;
-  font-size: 50px;
-}
-
-.productContainer, #product-list, .addedProduct, #support {
-  justify-content: space-evenly;
-}
-
-#cart-container {
-  justify-content: space-between;
-}
-
-#add-to-cart, .remove {
-  margin-bottom: 16px;
-  border: solid thin grey;
-}
-
-#info {
-  margin: auto 0;
-}
-
-.quantity {
-  margin: 16px 0;
-}
-
-.product img, #feedback textarea {
-  width: 100%;
-}
-
-.product {
-  flex: 0 0 30%;
-  margin: 10px 0;
-}
-
-.product .shop {
-  font-size: 10px;
-  margin-bottom: 10px;
-}
-
-.addedProduct {
-  border-bottom: thin solid grey;
-}
-
-#cart-summary {
-  width: 40%;
-  padding: 1px 1px 1px 10px;
-  height: 200px;
-  margin-bottom: 50px;
-  margin-left: 20px;
-  margin-top: 50px;
-}
-
-.hidden {
-  display: none;
+  margin-right: 5%;
 }
