@@ -2,31 +2,51 @@ import { addnewContact,
     getContacts,
     getContactWithID,
     updateContact,
-    deleteContact
+    deleteContact,
+    signupUser,
+    loginUser
 } from '../controllers/main_controller';
+
+var path = require('path')
 
 const routes = (app) => {
     app.route('/')
-        // .get((req, res) => {
-        //     res.sendFile(__dirname + "/public/index.html");
-        // });
         .get((req, res) => {
-            const user = {
-                firstName: 'Tim',
-                lastName: 'Cook',
-            }
-            res.render("./pages/index", {
-                user
-            });
+            res.render("./pages/index", {login:false});
         });
+        // .get((req, res) => {
+        //     const user = {
+        //         firstName: 'Tim',
+        //         lastName: 'Cook',
+        //     }
+        //     const type = {
+        //         first: 'KKK',
+        //         second: 'YYY',
+        //     }
+        //     res.render("./pages/index", {
+        //         login:false,
+        //         user:user,
+        //         Q:type
+        //     });
+        //});
 
     app.route('/login')
         .get((req, res) => {
-            res.sendFile(__dirname + "../../public/login.html");
-            // res.render(__dirname + "/public/login", {Title:"KKKK"});
+            // res.sendFile(__dirname + "../../public/login.html");
+            // res.sendFile( path.resolve("public/login.html"));
+            res.render("./pages/index", {login:true, error:false});
         })
-        // Post endpoint
-        .post(getContacts);
+    
+    // for the next('route') purpose
+    app.post('/login', (req, res, next) => {
+        if(req.body.submitBtn == "Login" ){
+            next('route')
+        }
+        else{
+            next()
+        }
+    }, signupUser);
+    app.post('/login', loginUser);
 
     app.route('/contact')
         .get((req,res, next) => {

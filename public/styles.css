@@ -8,7 +8,7 @@ body {
   margin-top: 10px;
 }
 
-#track-button {
+#track-button, #login-btn, #signup-btn {
     background-color: orange;
 }
 
@@ -35,7 +35,3 @@ footer, #cart-summary, #feedback textarea {
 #faq {
   margin-right: 5%;
 }
-
-/* .login{
-  display:none;
-} */

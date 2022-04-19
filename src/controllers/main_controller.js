@@ -1,10 +1,46 @@
 import mongoose from 'mongoose';
-import { AccountSchema } from '../models/model';
+import { AccountSchema, OrderSchema } from '../models/model';
 
-const Contact = mongoose.model('Order', AccountSchema);
+const Account = mongoose.model('Account', AccountSchema);
+const Order = mongoose.model('Order', OrderSchema);
 
 export const signupUser = (req, res) => {
-    let newUser = new Contact(req.body);
+    Account.findOne({"UserName" : req.body.Username}, (err, account) => {
+        if (err) {
+            res.send(err);
+        }
+        
+        if (account) {
+            console.log("singup_fail");
+            res.render("./pages/index", {login: true , msg: "Username already exists!"});
+        }
+        else{
+            delete req.body['submitBtn']
+            console.log(req.body)
+
+            let newAccount = new Account(req.body);
+            console.log(newAccount);
+
+            newAccount.save((err, contact) => {
+                if (err) {
+                    res.send(err);
+                }
+                res.render("./pages/index", {login:false});
+            });
+        }
+    });
+
+    
+}
+
+export const loginUser = (req, res) => {
+    console.log("login");
+    Account.findOne({"UserName" : req.body.Username}, (err, account) => {
+        if (err) {
+            res.send(err);
+        }
+        res.json(account);
+    });
 
     
 }
