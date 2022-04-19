@@ -21,7 +21,7 @@ export const signupUser = (req, res) => {
                 if (err) {
                     res.send(err);
                 }
-                res.render("./pages/index", {login:false});
+                res.render("./pages/index", {login:false, error: false, order:""});
             });
         }
     });
@@ -29,7 +29,7 @@ export const signupUser = (req, res) => {
     
 }
 
-export const loginUser = (req, res) => {
+export const loginUser = (req, res, next) => {
     console.log("login");
     Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
         if (err) {
@@ -38,7 +38,10 @@ export const loginUser = (req, res) => {
         
         if (account) {
             if(account.Password == req.body.Password){
-                res.render("./pages/personal");
+                // TODO let next middleware handle
+                // res.render("./pages/personal");
+                console.log("going to next");
+                next();
             }
             else{ // Incorrect password
                 res.render("./pages/index", {login: true , error: true, msg: "Incorrect password!"});
@@ -50,6 +53,29 @@ export const loginUser = (req, res) => {
     });
 
     
+}
+
+export const getYourOrder = (req, res) => {
+    Order.find({"UserName" : req.body.UserName}, (err, userOrders) => {
+        if (err) {
+            res.send(err);
+        }
+        res.render("./pages/personal", {orders:userOrders });
+    });
+}
+
+export const getTrackingInfo = (req, res) => {
+    Order.findOne({"TrackNum" : req.body.TrackNum}, (err, TrackingOrder) => {
+        if (err) {
+            res.send(err);
+        }
+        if (TrackingOrder) {
+            res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
+        }
+        else{
+            res.render("./pages/index", {login: false , error: true, order:"", msg: "Tracking number doesn't exists!"});
+        }
+    });
 }
 
 export const addnewContact = (req, res) => {

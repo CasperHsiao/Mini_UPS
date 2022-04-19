@@ -4,7 +4,9 @@ import { addnewContact,
     updateContact,
     deleteContact,
     signupUser,
-    loginUser
+    loginUser,
+    getYourOrder,
+    getTrackingInfo
 } from '../controllers/main_controller';
 
 var path = require('path')
@@ -12,23 +14,9 @@ var path = require('path')
 const routes = (app) => {
     app.route('/')
         .get((req, res) => {
-            res.render("./pages/index", {login:false});
-        });
-        // .get((req, res) => {
-        //     const user = {
-        //         firstName: 'Tim',
-        //         lastName: 'Cook',
-        //     }
-        //     const type = {
-        //         first: 'KKK',
-        //         second: 'YYY',
-        //     }
-        //     res.render("./pages/index", {
-        //         login:false,
-        //         user:user,
-        //         Q:type
-        //     });
-        //});
+            res.render("./pages/index", {login:false, error:false, order:""});
+        })
+        .post(getTrackingInfo);
 
     app.route('/login')
         .get((req, res) => {
@@ -46,7 +34,7 @@ const routes = (app) => {
             next()
         }
     }, signupUser);
-    app.post('/login', loginUser);
+    app.post('/login', loginUser, getYourOrder);
 
     app.route('/contact')
         .get((req,res, next) => {

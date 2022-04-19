@@ -48,19 +48,25 @@
             <input type="submit" name="submitBtn" value="Login" id="login-btn">
             <input type="submit" name="submitBtn" value="Signup" id="signup-btn">
           </div>
-
-           <!-- error prompt -->
-          <% if(error == true){ %>
-            <label class="errorMsg"> <%= msg %> </label>
-          <% } %>
         </form>
       <% } else { %>
-        <form>
+        <form method="post">
           <div class="input-group">
-            <input type="text" placeholder="Tracking Number" required>
+            <input type="text" name="TrackNum" placeholder="Tracking Number" required>
             <input type="submit" value="Track" id="track-button">
           </div>
         </form>
+
+        <ul>
+          <% if(order){ %>
+            <li>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID:  <%= order.WarehouseID %> </li>
+          <% } %>
+        </ul>
+      <% } %>
+
+      <!-- error prompt -->
+      <% if(error == true){ %>
+        <label class="errorMsg"> <%= msg %> </label>
       <% } %>
     </body>
    

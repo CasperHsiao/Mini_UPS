@@ -38,7 +38,12 @@
       <button id="all">Shop All</button>
       <button id="cart">Cart</button>
     </div> --> 
-    
+
+      <ul>
+        <% orders.forEach(function(order){ %>
+          <li>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID:  <%= order.WarehouseID %> </li>
+        <% }); %>
+      </ul>
     </body>
    
 
