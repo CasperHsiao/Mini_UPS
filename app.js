@@ -28,7 +28,7 @@ client.on('end', () => {
 
 initializeWorld();
 
-/*
+
 // mongoose connection
 mongoose.Promise = global.Promise;
 mongoose.connect('mongodb://127.0.0.1/UPSdb',{
@@ -37,7 +37,7 @@ mongoose.connect('mongodb://127.0.0.1/UPSdb',{
 })
 .catch(err => console.log( err ))
 .then(() => console.log( 'Database Connected' ));
-*/
+
 
 //bodyparser setup
 app.use(express.static("public"));
@@ -113,9 +113,9 @@ async function initializeWorld() {
         let root = await jspb.load(upsProto);
         let UConnect = root.lookupType('UConnect');
         let UConnected = root.lookupType('UConnected');
-        var UInitTruck = root.lookupType("UInitTruck");
-        var UInitTruckPayload = { id: 2, x: 10, y: 1 };
-        var errMsg = UInitTruck.verify(UInitTruckPayload);
+        let UInitTruck = root.lookupType("UInitTruck");
+        let UInitTruckPayload = { id: 2, x: 10, y: 1 };
+        let errMsg = UInitTruck.verify(UInitTruckPayload);
         if (errMsg) {
             throw Error(errMsg);
         }
