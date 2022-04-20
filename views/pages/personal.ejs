@@ -7,8 +7,8 @@
     <!-- This is the bootstrap for navibar  -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
   
-    <link rel="stylesheet" href="styles.css" />
-    <script src="index.js"></script>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/index.js"></script>
   </head>
 
   <body>
@@ -39,11 +39,19 @@
       <button id="cart">Cart</button>
     </div> --> 
 
-      <ul>
         <% orders.forEach(function(order){ %>
-          <li>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID:  <%= order.WarehouseID %> </li>
+          <form method="post">
+            <div class="input-group">
+              <label> UserName: <%= order.UserName %> </label> &emsp;
+              <label> TrackNum: <%= order.TrackNum %> </label> &emsp;
+              <label> WarehouseID: <%= order.WarehouseID %> </label> &emsp;
+              <input type="text" name="DeliverAddress" placeholder="New Address" required>
+              <input type="submit" value="Track" id="track-button">
+              <input type="hidden" name="TrackNum" value= <%= order.TrackNum %> >
+              <input type="hidden" name="UserName" value= <%= order.UserName %> >
+            </div>
+          </form>
         <% }); %>
-      </ul>
     </body>
    
 

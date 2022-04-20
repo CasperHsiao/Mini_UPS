@@ -6,7 +6,8 @@ import { addnewContact,
     signupUser,
     loginUser,
     getYourOrder,
-    getTrackingInfo
+    getTrackingInfo,
+    editAddress
 } from '../controllers/main_controller';
 
 var path = require('path')
@@ -36,33 +37,39 @@ const routes = (app) => {
     }, signupUser);
     app.post('/login', loginUser, getYourOrder);
 
-    app.route('/contact')
-        .get((req,res, next) => {
-            // middleware
-            console.log(`Request from: ${req.originalUrl}`)
-            console.log(`Request type: ${req.method}`)
-            next();
-        }, getContacts)
+    app.route('/personal-page')
+        .get(getYourOrder)
         
         // Post endpoint
-        .post(addnewContact);
+        .post(editAddress, getYourOrder);
+
+    // app.route('/contact')
+    //     .get((req,res, next) => {
+    //         // middleware
+    //         console.log(`Request from: ${req.originalUrl}`)
+    //         console.log(`Request type: ${req.method}`)
+    //         next();
+    //     }, getContacts)
+        
+    //     // Post endpoint
+    //     .post(addnewContact);
     
-    app.route('/hello')
-        .get((req, res) => {
-            // res.set("Content-Type", "application/json");
-            res.type("json");
-            res.send({ "msg" : "Hello" });
-        });
+    // app.route('/hello')
+    //     .get((req, res) => {
+    //         // res.set("Content-Type", "application/json");
+    //         res.type("json");
+    //         res.send({ "msg" : "Hello" });
+    //     });
 
-    app.route('/contact/:contactID')
-        // get a specific contact
-        .get(getContactWithID)
+    // app.route('/contact/:contactID')
+    //     // get a specific contact
+    //     .get(getContactWithID)
 
-        // updating a specific contact
-        .put(updateContact)
+    //     // updating a specific contact
+    //     .put(updateContact)
 
-        // deleting a specific contact
-        .delete(deleteContact);
+    //     // deleting a specific contact
+    //     .delete(deleteContact);
     
 }
 

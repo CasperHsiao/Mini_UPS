@@ -30,18 +30,15 @@ export const signupUser = (req, res) => {
 }
 
 export const loginUser = (req, res, next) => {
-    console.log("login");
     Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
         if (err) {
             res.send(err);
         }
-        
         if (account) {
             if(account.Password == req.body.Password){
-                // TODO let next middleware handle
-                // res.render("./pages/personal");
-                console.log("going to next");
-                next();
+                //next();
+                req.app.set('UseName', req.body.UserName);
+                res.redirect('/personal-page/');
             }
             else{ // Incorrect password
                 res.render("./pages/index", {login: true , error: true, msg: "Incorrect password!"});
@@ -51,12 +48,11 @@ export const loginUser = (req, res, next) => {
             res.render("./pages/index", {login: true , error: true, msg: "Username doesn't exists!"});
         }
     });
-
-    
 }
 
 export const getYourOrder = (req, res) => {
-    Order.find({"UserName" : req.body.UserName}, (err, userOrders) => {
+    // Order.find({"UserName" : req.body.UserName}, (err, userOrders) => {
+    Order.find({"UserName" : req.app.get('UseName')}, (err, userOrders) => {
         if (err) {
             res.send(err);
         }
@@ -75,6 +71,17 @@ export const getTrackingInfo = (req, res) => {
         else{
             res.render("./pages/index", {login: false , error: true, order:"", msg: "Tracking number doesn't exists!"});
         }
+    });
+}
+
+export const editAddress = (req, res, next) => {
+    Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum},
+                            {"DeliverAddress" : req.body.DeliverAddress}, (err, contact) => {
+        if (err) {
+            res.send(err);
+        }
+        req.app.set('UseName', req.body.UserName);
+        next();
     });
 }
 
