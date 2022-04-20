@@ -61,7 +61,8 @@ export const getYourOrder = (req, res) => {
 export const getTrackingInfo = (req, res) => {
     Order.findOne({"TrackNum" : req.body.TrackNum}, (err, TrackingOrder) => {
         if (err) {
-            res.send(err);
+            // res.send(err);
+            res.render("./pages/index", {login: false , error: true, order:"", msg: err});
         }
         if (TrackingOrder) {
             res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
