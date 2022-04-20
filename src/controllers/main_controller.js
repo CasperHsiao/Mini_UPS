@@ -5,27 +5,23 @@ const Account = mongoose.model('Account', AccountSchema);
 const Order = mongoose.model('Order', OrderSchema);
 
 export const signupUser = (req, res) => {
-    Account.findOne({"UserName" : req.body.Username}, (err, account) => {
+    Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
         if (err) {
             res.send(err);
         }
-        
+
         if (account) {
-            console.log("singup_fail");
-            res.render("./pages/index", {login: true , msg: "Username already exists!"});
+            res.render("./pages/index", {login: true , error: true, msg: "Username already exists!"});
         }
         else{
             delete req.body['submitBtn']
-            console.log(req.body)
-
             let newAccount = new Account(req.body);
-            console.log(newAccount);
 
             newAccount.save((err, contact) => {
                 if (err) {
                     res.send(err);
                 }
-                res.render("./pages/index", {login:false});
+                res.render("./pages/index", {login:false, error: false, order:""});
             });
         }
     });
@@ -33,16 +29,60 @@ export const signupUser = (req, res) => {
     
 }
 
-export const loginUser = (req, res) => {
-    console.log("login");
-    Account.findOne({"UserName" : req.body.Username}, (err, account) => {
+export const loginUser = (req, res, next) => {
+    Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
         if (err) {
             res.send(err);
         }
-        res.json(account);
+        if (account) {
+            if(account.Password == req.body.Password){
+                //next();
+                req.app.set('UseName', req.body.UserName);
+                res.redirect('/personal-page/');
+            }
+            else{ // Incorrect password
+                res.render("./pages/index", {login: true , error: true, msg: "Incorrect password!"});
+            }
+        }
+        else{ // UserName doesn't exist
+            res.render("./pages/index", {login: true , error: true, msg: "Username doesn't exists!"});
+        }
     });
+}
 
-    
+export const getYourOrder = (req, res) => {
+    // Order.find({"UserName" : req.body.UserName}, (err, userOrders) => {
+    Order.find({"UserName" : req.app.get('UseName')}, (err, userOrders) => {
+        if (err) {
+            res.send(err);
+        }
+        res.render("./pages/personal", {orders:userOrders });
+    });
+}
+
+export const getTrackingInfo = (req, res) => {
+    Order.findOne({"TrackNum" : req.body.TrackNum}, (err, TrackingOrder) => {
+        if (err) {
+            res.send(err);
+        }
+        if (TrackingOrder) {
+            res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
+        }
+        else{
+            res.render("./pages/index", {login: false , error: true, order:"", msg: "Tracking number doesn't exists!"});
+        }
+    });
+}
+
+export const editAddress = (req, res, next) => {
+    Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum},
+                            {"DeliverAddress" : req.body.DeliverAddress}, (err, contact) => {
+        if (err) {
+            res.send(err);
+        }
+        req.app.set('UseName', req.body.UserName);
+        next();
+    });
 }
 
 export const addnewContact = (req, res) => {

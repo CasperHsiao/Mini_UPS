@@ -35,3 +35,7 @@ footer, #cart-summary, #feedback textarea {
 #faq {
   margin-right: 5%;
 }
+
+.errorMsg {
+  color: rgb(240, 9, 9);
+}
