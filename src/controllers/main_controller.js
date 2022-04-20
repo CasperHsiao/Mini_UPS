@@ -25,8 +25,6 @@ export const signupUser = (req, res) => {
             });
         }
     });
-
-    
 }
 
 export const loginUser = (req, res, next) => {
@@ -75,7 +73,7 @@ export const getTrackingInfo = (req, res) => {
 }
 
 export const editAddress = (req, res, next) => {
-    Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum},
+    Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum, 'Status': "preparing"},
                             {"DeliverAddress" : req.body.DeliverAddress}, (err, contact) => {
         if (err) {
             res.send(err);
@@ -85,50 +83,66 @@ export const editAddress = (req, res, next) => {
     });
 }
 
-export const addnewContact = (req, res) => {
-    let newContact = new Contact(req.body);
+export function addNewOrder (reqOrder) {
+    let newOrder = new Order({'WarehouseID': reqOrder.startDelivery.warehouseID,
+                            'ItemType': reqOrder.startDelivery.item,
+                            'DeliverAddress': reqOrder.startDelivery.address,
+                            'UserName': reqOrder.startDelivery.UPS_account,
+                            'Status': "preparing",
+                            'Priority': reqOrder.startDelivery.priority
+                    });
 
-    newContact.save((err, contact) => {
+    newOrder.save((err, info) => {
         if (err) {
-            res.send(err);
+           throw new Error(err); 
         }
-        res.json(contact);
-    });
+    });    
 }
 
-export const getContacts = (req, res) => {
-    console.log(req.body.UserName)
-    Contact.findOne({"UserName" : req.body.UserName}, (err, contact) => {
-        if (err) {
-            res.send(err);
-        }
-        res.json(contact);
-    });
-}
+// export const addnewContact = (req, res) => {
+//     let newContact = new Contact(req.body);
 
-export const getContactWithID = (req, res) => {
-    Contact.findById(req.params.contactID, (err, contact) => {
-        if (err) {
-            res.send(err);
-        }
-        res.json(contact);
-    });
-}
+//     newContact.save((err, contact) => {
+//         if (err) {
+//             res.send(err);
+//         }
+//         res.json(contact);
+//     });
+// }
 
-export const updateContact = (req, res) => {
-    Contact.findOneAndUpdate({ _id: req.params.contactID}, req.body, { new: true, useFindAndModify: false }, (err, contact) => {
-        if (err) {
-            res.send(err);
-        }
-        res.json(contact);
-    });
-}
+// export const getContacts = (req, res) => {
+//     console.log(req.body.UserName)
+//     Contact.findOne({"UserName" : req.body.UserName}, (err, contact) => {
+//         if (err) {
+//             res.send(err);
+//         }
+//         res.json(contact);
+//     });
+// }
 
-export const deleteContact = (req, res) => {
-    Contact.remove({ _id: req.params.contactID}, (err, contact) => {
-        if (err) {
-            res.send(err);
-        }
-        res.json({ message: 'successfuly deleted contact'});
-    });
-}
+// export const getContactWithID = (req, res) => {
+//     Contact.findById(req.params.contactID, (err, contact) => {
+//         if (err) {
+//             res.send(err);
+//         }
+//         res.json(contact);
+//     });
+// }
+
+// export const updateContact = (req, res) => {
+//     Contact.findOneAndUpdate({ _id: req.params.contactID}, req.body, { new: true, useFindAndModify: false }, (err, contact) => {
+//         if (err) {
+//             res.send(err);
+//         }
+//         res.json(contact);
+//     });
+// }
+
+// export const deleteContact = (req, res) => {
+//     Contact.remove({ _id: req.params.contactID}, (err, contact) => {
+//         if (err) {
+//             res.send(err);
+//         }
+//         res.json({ message: 'successfuly deleted contact'});
+//     });
+// }
