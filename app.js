@@ -13,22 +13,27 @@ const PORT_NUM = 8000;
 const PORT = process.env.PORT || PORT_NUM;
 const WORLD_URL = 'localhost';
 const WORLD_PORT_NUM = 12345;
-const upsProto = 'world_ups.proto';
+const UPS_PROTO = 'world_ups.proto';
+const WORLD_SIM_SERVER = connectToWorldSimServer();
+const NUM_TRUCKS = 100;
 var WORLD_ID = null;
+const JOB_QUEUE = [];
+const IDLE_TRUCKS = [];
+var trackingNumber = 0;
+var seqNum = 0;
+
 /*
-const client = net.connect(WORLD_PORT_NUM, WORLD_URL);
-client.on('end', () => {
-    console.log("Disconnected from world");
-});
+{
+    "trackingNumber": 2345
+    "warehouseId": 1234
+}
 */
-//initializeWorld();
+
+
+
 // ejs view engine
 app.set('views', path.join(__dirname, 'views'))
 app.set('view engine', 'ejs')
-
-
-
-
 
 
 // mongoose connection
@@ -49,24 +54,52 @@ app.use(express.json());
 routes(app);
 
 app.get('/query', async function (req, res) {
-    // res.set("Content-Type", "application/json");
-    let result = await query();
+    sendRequestToWorld();
     res.type("json");
     res.send({ "result" : "ok" });
 });
 
-// app.get('/login', function (req, res) {
-//     res.sendFile(__dirname + "/public/login.html");
-//     // res.render(__dirname + "/public/login", {Title:"KKKK"});
-// });
+app.get('/worldid', async function (req, res) {
+    res.json({"worldid" : WORLD_ID});
+});
 
-app.get('/world', async function (req, res) {
-    try {
-        //let result = await initializeWorld();
-        //WORLD_ID = Number(result.worldid);
-        res.json({"worldid" : WORLD_ID});
-    } catch (err) {
+app.get('/disconnect', async function (req, res) {
+    disconnectFromWorld();
+    res.json({"worldid" : WORLD_ID});
+});
 
+app.get('/deliver', async function (req, res) {
+    /*
+    let requestBody = {
+        "startDelivery" : {
+            "warehouseID": "12345",
+            "item": "Cake",
+            "address": "50,20",
+            "priority": "1",
+            "userid": "Jerry",
+            "UPS_account": "Jerry"
+        }
+    }
+    */
+    let delivery = req.body; // Need to change back to req.body.startDelivery
+    if (!delivery) {
+        res.status(REQUEST_ERROR).send("Missing parameters");
+    } else {
+        let whid = Number(delivery.warehouseID);
+        let item = delivery.item;
+        let x = Number(delivery.address.split(",")[0]);
+        let y = Number(delivery.address.split(",")[1]);
+        let priority = delivery.priority;
+        let uid = Number(delivery.userid);
+        let acc = delivery.UPS_account;
+        if (whid === undefined || x === undefined || y === undefined || uid === undefined || acc === undefined) {
+            res.status(REQUEST_ERROR).send("Missing parameters");
+        } else {
+            sendRequestToWorld({type: 'pickup', whid: whid});
+            res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}});
+            trackingNumber++;
+        }
+        
     }
 });
 
@@ -75,75 +108,156 @@ app.listen(PORT, () => {
     console.log("Listening on port " + PORT + "...");
 });
 
-async function query() {
-    try {
-        let root = await jspb.load(upsProto);
+function generatePickupPayload(command, root) {
+    let UGoPickup = root.lookupType('UGoPickup');
+    let truckid = IDLE_TRUCKS.shift();
+    if (truckid === undefined) {
+        JOB_QUEUE.push(command);
+        return null;
+    }
+    let pickupPayload = {truckid: truckid, whid: command.whid, seqnum: seqNum};
+    let errMsg = UGoPickup.verify(pickupPayload);
+    if (errMsg) {
+        throw Error(errMsg);
+    }
+    return pickupPayload;
+}
+
+function generateDeliverPayload(command, root) {
+    let UGoDeliver = root.lookupType('UGoDeliver');
+    let UDeliveryLocation = root.lookupType('UDeliveryLocation');
+    let deliveryLocationPayload = {package: command.packageid, x: command.x, y: command.y};
+    let errMsg = UDeliveryLocation.verify(deliveryLocationPayload);
+    if (errMsg) {
+        throw Error(errMsg);
+    }
+    let deliverPayload = {truckid: command.truckid, packages: [deliveryLocationPayload], seqnum: seqNum};
+    errMsg = UGoDeliver.verify(deliverPayload);
+    if (errMsg) {
+        throw Error(errMsg);
+    }
+    return deliverPayload;
+}
+
+function sendRequestToWorld(command) {
+    jspb.load(UPS_PROTO, (err, root) => {
+        if (err) {
+            throw Error(err);
+        }
         let UCommands = root.lookupType('UCommands');
-        let UResponses = root.lookupType('UResponses');
-        let UQuery = root.lookupType('UQuery');
-        let query = {truckid: 2, seqnum: 0};
-        let errMsg = UQuery.verify(query);
+        let commandPayload;
+        if (command.type === 'pickup') {
+            let pickupPayload = generatePickupPayload(command, root);
+            if (pickupPayload == null) {
+                return;
+            }
+            commandPayload = {pickups: [pickupPayload]};
+        } else {
+            commandPayload = {deliveries: [generateDeliverPayload(command, root)]};
+        }
+        let errMsg = UCommands.verify(commandPayload);
         if (errMsg) {
             throw Error(errMsg);
         }
-        let command = {queries: [query]};
-        errMsg = UCommands.verify(command);
+        let message = UCommands.create(commandPayload);
+        let buffer = UCommands.encodeDelimited(commandPayload).finish();
+        if (WORLD_SIM_SERVER.write(buffer)) {
+            seqNum++;
+        } else {
+            JOB_QUEUE.push(command);
+        }
+    });
+}
+
+
+function handleWorldResponses(data) {
+    jspb.load(UPS_PROTO, (err, root) => {
+        if (err) {
+            throw err;
+        }
+        try {
+            let UConnected = root.lookupType('UConnected');
+            let message = UConnected.decodeDelimited(data);
+            if (message.result == 'connected!') {
+                WORLD_ID = Number(message.worldid);
+                console.log("Connected to world " + WORLD_ID);
+            }
+            console.log(message);
+        } catch (err){
+            let UResponses = root.lookupType('UResponses');
+            let message = UResponses.decodeDelimited(data);
+            console.log(message);
+        }
+    });
+}
+
+function connectToWorldSimServer() {
+    let worldSimServer = new net.Socket();
+    worldSimServer.on('connect', () => {
+        console.log("connected to world simulator server!");
+        connectToWorld();
+    });
+    worldSimServer.on('data', (data) => {
+        console.log("Data received from world simulator server");
+        handleWorldResponses(data);
+    });
+    worldSimServer.on('close', () => {
+        console.log("disconnected from world simulator server");
+        setTimeout(() => {
+            WORLD_SIM_SERVER.connect({host: WORLD_URL, port: WORLD_PORT_NUM});
+        }, 10000);
+    });
+    worldSimServer.on('error', (err) => {
+        console.log("world simulator server is down");
+    });
+    worldSimServer.connect({host: WORLD_URL, port: WORLD_PORT_NUM});
+    return worldSimServer;
+}
+
+function connectToWorld() {
+    jspb.load(UPS_PROTO, (err, root) => {
+        if (err) {
+            throw Error(err);
+        }
+        let UConnect = root.lookupType('UConnect');
+        let UInitTruck = root.lookupType("UInitTruck");
+        let UInitTruckPayload = [];
+        for (let i = 0; i < NUM_TRUCKS; i++) {
+            let temp = { id: i, x: 10, y: 1 }
+            let errMsg = UInitTruck.verify(temp);
+            if (errMsg) {
+                throw Error(errMsg);
+            }
+            UInitTruckPayload.push(temp);
+            IDLE_TRUCKS.push(i);
+        }
+        let UConnectPayload = {trucks: UInitTruckPayload, isAmazon: false};
+        if (WORLD_ID != null) {
+            UConnectPayload = {worldid: WORLD_ID, isAmazon: false};
+        }
+        let errMsg = UConnect.verify(UConnectPayload);
+        if (errMsg) {
+            throw Error(errMsg);
+        }
+        let message = UConnect.create(UConnectPayload);
+        let buffer = UConnect.encodeDelimited(message).finish();
+        WORLD_SIM_SERVER.write(buffer);
+    });
+}
+
+function disconnectFromWorld() {
+    jspb.load(UPS_PROTO, (err, root) => {
+        if (err) {
+            throw Error(err);
+        }
+        let UCommands = root.lookupType('UCommands');
+        let command = {disconnect: true};
+        let errMsg = UCommands.verify(command);
         if (errMsg) {
             throw Error(errMsg);
         }
         let request = UCommands.create(command);
         let buffer = UCommands.encodeDelimited(request).finish();
-        client.write(buffer);
-    } catch (err) {
-        console.log(err);
-    }
-}
-
-function handleUResponses(data) {
-    jspb.load(upsProto, (err, root) => {
-        if (err) {
-            throw err;
-        }
-        let UResponses = root.lookupType('UResponses');
-        let message = UResponses.decodeDelimited(data);
-        console.log(message);
+        WORLD_SIM_SERVER.write(buffer);
     });
-}
-
-async function initializeWorld() {
-    try {
-        let root = await jspb.load(upsProto);
-        let UConnect = root.lookupType('UConnect');
-        let UConnected = root.lookupType('UConnected');
-        let UInitTruck = root.lookupType("UInitTruck");
-        let UInitTruckPayload = { id: 2, x: 10, y: 1 };
-        let errMsg = UInitTruck.verify(UInitTruckPayload);
-        if (errMsg) {
-            throw Error(errMsg);
-        }
-        let UConnectPayload = {trucks: [UInitTruckPayload], isAmazon: false};
-        errMsg = UConnect.verify(UConnectPayload);
-        if (errMsg) {
-            throw Error(errMsg);
-        }
-        let request = UConnect.create(UConnectPayload);
-        let buffer = UConnect.encodeDelimited(request).finish();
-        client.write(buffer);
-
-        let data = await new Promise((resolve, reject) => {
-            client.on('data', (data) => {
-                console.log("Data received from world");
-                resolve(data);
-            });
-        });
-        let response = UConnected.decodeDelimited(data);
-        console.log(response.result);
-        WORLD_ID = Number(response.worldid);
-        client.on('data', (data) => {
-            handleUResponses(data);
-        });
-    } catch (err) {
-        console.log(err);
-    }
-
 }
