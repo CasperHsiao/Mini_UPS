@@ -17,8 +17,9 @@ const UPS_PROTO = 'world_ups.proto';
 const WORLD_SIM_SERVER = connectToWorldSimServer();
 const NUM_TRUCKS = 100;
 var WORLD_ID = null;
-const JOB_QUEUE = [];
+const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
+const PACKAGE_TRUCK_MAP = {};
 var trackingNumber = 0;
 var seqNum = 0;
 
@@ -55,12 +56,6 @@ routes(app);
 
 app.get('/test', async function (req, res) {
     sendRequestToWorld({type: 'pickup', whid: 2});
-    /*
-    let result = await receiveRequestFromWorld();
-    res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}, 
-                "result": result
-                });
-    */
     res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}});
 });
 
@@ -68,12 +63,12 @@ app.get('/worldid', async function (req, res) {
     res.json({"worldid" : WORLD_ID});
 });
 
-app.get('/disconnect', async function (req, res) {
-    disconnectFromWorld();
-    res.json({"worldid" : WORLD_ID});
+app.post('/truckLoaded', async function (req, res) {
+    let load = req.body;
+    // query database to get 
 });
 
-app.get('/deliver', async function (req, res) {
+app.post('/startDeliver', async function (req, res) {
     /*
     let requestBody = {
         "startDelivery" : {
@@ -87,39 +82,27 @@ app.get('/deliver', async function (req, res) {
     }
     */
     let delivery = req.body; // Need to change back to req.body.startDelivery
-    if (!delivery) {
-        res.status(REQUEST_ERROR).send("Missing parameters");
-    } else {
-        let whid = Number(delivery.warehouseID);
-        let item = delivery.item;
-        let address = delivery.address;
-        let priority = delivery.priority;
-        let uid = Number(delivery.userid);
-        let acc = delivery.UPS_account;
-        if (whid === undefined || address === undefined || uid === undefined || acc === undefined) {
-            res.status(REQUEST_ERROR).send("Missing parameters");
-        } else {
-            sendRequestToWorld({type: 'pickup', whid: whid});
-            /*
-            let result = await receiveRequestFromWorld();
-            res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}, 
-                        "result": result
-                        });
-            */
-            res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}});
-            trackingNumber++;
-        }
-        
-    }
+    // checkwith database for validity
+    sendRequestToWorld({type: 'pickup', whid: delivery.startDelivery.warehouseID, packageid: trackingNumber});
+    /*
+    let result = await receiveRequestFromWorld();
+    res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}, 
+                "result": result
+                });
+    */
+    res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}});
+    trackingNumber++;
+    
 });
 
 function generatePickupPayload(command, root) {
     let UGoPickup = root.lookupType('UGoPickup');
     let truckid = IDLE_TRUCKS.shift();
     if (truckid === undefined) {
-        JOB_QUEUE.push(command);
+        PICKUP_QUEUE.push(command);
         return null;
     }
+    PACKAGE_TRUCK_MAP[command.packageid] = truckid;
     let pickupPayload = {truckid: truckid, whid: command.whid, seqnum: seqNum};
     let errMsg = UGoPickup.verify(pickupPayload);
     if (errMsg) {
@@ -131,7 +114,7 @@ function generatePickupPayload(command, root) {
 function generateDeliverPayload(command, root) {
     let UGoDeliver = root.lookupType('UGoDeliver');
     let UDeliveryLocation = root.lookupType('UDeliveryLocation');
-    let deliveryLocationPayload = {package: command.packageid, x: command.x, y: command.y};
+    let deliveryLocationPayload = {packageid: command.packageid, x: command.x, y: command.y};
     let errMsg = UDeliveryLocation.verify(deliveryLocationPayload);
     if (errMsg) {
         throw Error(errMsg);
@@ -174,37 +157,8 @@ function sendRequestToWorld(command) {
     });
 }
 
-function receiveRequestFromWorld() {
-    return new Promise((resolve, reject) => {
-        WORLD_SIM_SERVER.on('data', function onData(data) {
-            WORLD_SIM_SERVER.off('data', onData);
-            promiseHandleWorldResponses(data, resolve)
-        });
-    });
-}
-
-function promiseHandleWorldResponses(data, resolve) {
-    console.log("Data received from world simulator server");
-    jspb.load(UPS_PROTO, (err, root) => {
-        if (err) {
-            throw err;
-        }
-        try {
-            let UConnected = root.lookupType('UConnected');
-            let message = UConnected.decodeDelimited(data);
-            if (message.result == 'connected!') {
-                WORLD_ID = Number(message.worldid);
-                console.log("Connected to world " + WORLD_ID);
-            }
-            console.log(message);
-            resolve(message);
-        } catch (err){
-            let UResponses = root.lookupType('UResponses');
-            let message = UResponses.decodeDelimited(data);
-            console.log(message);
-            resolve(message);
-        }
-    });
+function handleUReponses(data) {
+    
 }
 
 function handleWorldResponses(data) {
@@ -243,7 +197,7 @@ function connectToWorldSimServer() {
         }, 10000);
     });
     worldSimServer.on('error', (err) => {
-        console.log("World simulator server is down");
+        console.log("Something went wrong with world simulator server socket connection");
     });
     
     worldSimServer.connect({host: WORLD_URL, port: WORLD_PORT_NUM});
@@ -282,6 +236,17 @@ function connectToWorld() {
     });
 }
 
+
+app.listen(PORT, () => {
+    console.log("Listening on port " + PORT + "...");
+});
+
+/*
+app.get('/disconnect', async function (req, res) {
+    disconnectFromWorld();
+    res.json({"worldid" : WORLD_ID});
+});
+
 function disconnectFromWorld() {
     jspb.load(UPS_PROTO, (err, root) => {
         if (err) {
@@ -299,7 +264,39 @@ function disconnectFromWorld() {
         //receiveRequestFromWorld();
     });
 }
+*/
 
-app.listen(PORT, () => {
-    console.log("Listening on port " + PORT + "...");
-});
+/*
+function receiveRequestFromWorld() {
+    return new Promise((resolve, reject) => {
+        WORLD_SIM_SERVER.on('data', function onData(data) {
+            WORLD_SIM_SERVER.off('data', onData);
+            promiseHandleWorldResponses(data, resolve)
+        });
+    });
+}
+
+function promiseHandleWorldResponses(data, resolve) {
+    console.log("Data received from world simulator server");
+    jspb.load(UPS_PROTO, (err, root) => {
+        if (err) {
+            throw err;
+        }
+        try {
+            let UConnected = root.lookupType('UConnected');
+            let message = UConnected.decodeDelimited(data);
+            if (message.result == 'connected!') {
+                WORLD_ID = Number(message.worldid);
+                console.log("Connected to world " + WORLD_ID);
+            }
+            console.log(message);
+            resolve(message);
+        } catch (err){
+            let UResponses = root.lookupType('UResponses');
+            let message = UResponses.decodeDelimited(data);
+            console.log(message);
+            resolve(message);
+        }
+    });
+}
+*/
