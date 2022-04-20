@@ -81,7 +81,7 @@ app.get('/deliver', async function (req, res) {
         }
     }
     */
-    let delivery = req.body;
+    let delivery = req.body; // Need to change back to req.body.startDelivery
     if (!delivery) {
         res.status(REQUEST_ERROR).send("Missing parameters");
     } else {
