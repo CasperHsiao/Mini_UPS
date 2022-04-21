@@ -83,20 +83,27 @@ export const editAddress = (req, res, next) => {
     });
 }
 
-export function addNewOrder (reqOrder) {
+export async function addNewOrder (reqOrder, trackingNumber) {
     let newOrder = new Order({'WarehouseID': reqOrder.startDelivery.warehouseID,
                             'ItemType': reqOrder.startDelivery.item,
                             'DeliverAddress': reqOrder.startDelivery.address,
                             'UserName': reqOrder.startDelivery.UPS_account,
+                            'TrackNum': trackingNumber,
                             'Status': "preparing",
                             'Priority': reqOrder.startDelivery.priority
                     });
-
+    /*
     newOrder.save((err, info) => {
         if (err) {
            throw new Error(err); 
         }
-    });    
+    });  
+    */
+    try {
+        let result = await newOrder.save();
+    } catch (err) {
+        throw new Error(err);
+    }
 }
 
 // export const addnewContact = (req, res) => {
