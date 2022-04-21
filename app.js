@@ -3,6 +3,8 @@ import routes from './src/routes/main_route';
 import mongoose from 'mongoose';
 import jspb from 'protobufjs';
 import net from 'net';
+import { addNewOrder } from './src/controllers/main_controller';
+import { request } from 'http';
 
 const app = express();
 var path = require('path')
@@ -50,7 +52,9 @@ mongoose.connect('mongodb://127.0.0.1/UPSdb',{
 //bodyparser setup
 app.use(express.static("public"));
 app.use(express.urlencoded({extended: true}));
-app.use(express.json());
+
+// Changed to String
+app.use(express.text());
 
 routes(app);
 
@@ -60,39 +64,34 @@ app.get('/test', async function (req, res) {
 });
 
 app.get('/worldid', async function (req, res) {
-    res.json({"worldid" : WORLD_ID});
+    res.send(JSON.stringify({"worldid" : WORLD_ID}));
+
 });
 
-app.post('/truckLoaded', async function (req, res) {
-    let load = req.body;
-    // query database to get 
-});
-
-app.post('/startDeliver', async function (req, res) {
-    /*
-    let requestBody = {
-        "startDelivery" : {
-            "warehouseID": "12345",
-            "item": "Cake",
-            "address": "50,20",
-            "priority": "1",
-            "userid": "Jerry",
-            "UPS_account": "Jerry"
+app.post('/amazonEndpoint', async function (req, res) {
+    let request = String(req.body);
+    console.log(request);
+    if (request.startDelivery !== undefined ) {
+        try {
+            let result = await addNewOrder(request, trackingNumber);
+            sendRequestToWorld({type: 'pickup', whid: Number(request.startDelivery.warehouseID), packageid: trackingNumber});
+            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
+            trackingNumber++;
+        } catch (err) {
+            console.log(trackingNumber);
+            res.status(REQUEST_ERROR).send("Missing parameters");
         }
+    } else if (request.deliveryStatus !== undefined) {
+
+    } else if (request.truckLoaded !== undefined) {
+
+    } else if (request.editAddress !== undefined) {
+
+    } else if (request.cancelAddress !== undefined) {
+
+    } else {
+        res.status(REQUEST_ERROR).send("Missing parameters");
     }
-    */
-    let delivery = req.body; // Need to change back to req.body.startDelivery
-    // checkwith database for validity
-    sendRequestToWorld({type: 'pickup', whid: delivery.startDelivery.warehouseID, packageid: trackingNumber});
-    /*
-    let result = await receiveRequestFromWorld();
-    res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}, 
-                "result": result
-                });
-    */
-    res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}});
-    trackingNumber++;
-    
 });
 
 function generatePickupPayload(command, root) {
@@ -157,10 +156,6 @@ function sendRequestToWorld(command) {
     });
 }
 
-function handleUReponses(data) {
-    
-}
-
 function handleWorldResponses(data) {
     console.log("Data received from world simulator server");
     jspb.load(UPS_PROTO, (err, root) => {
@@ -178,9 +173,27 @@ function handleWorldResponses(data) {
         } catch (err){
             let UResponses = root.lookupType('UResponses');
             let message = UResponses.decodeDelimited(data);
+            handleUResponses(message);
             console.log(message);
+
         }
     });
+}
+
+function handleUResponses(response) {
+    let completions = response.completions;
+    for (let i = 0; i < completions.length; i++) {
+        handleFinishedTruck(completions[i]);
+    }
+}
+
+function handleFinishedTruck(finished) {
+    let status = finished.status;
+    //update database
+    if (status === 'idle') {
+        IDLE_TRUCKS.push(finished.truckid);
+        
+    }
 }
 
 function connectToWorldSimServer() {
