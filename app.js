@@ -33,10 +33,18 @@ var seqNum = 0;
 */
 
 
-
 // ejs view engine
-app.set('views', path.join(__dirname, 'views'))
-app.set('view engine', 'ejs')
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+//bodyparser setup
+app.use(express.static("public"));
+app.use(express.urlencoded({extended: true}));
+
+// Changed to String
+app.use(express.text());
+
+routes(app);
 
 
 // mongoose connection
@@ -49,14 +57,6 @@ mongoose.connect('mongodb://127.0.0.1/UPSdb',{
 .then(() => console.log( 'Database Connected' ));
 
 
-//bodyparser setup
-app.use(express.static("public"));
-app.use(express.urlencoded({extended: true}));
-
-// Changed to String
-app.use(express.text());
-
-routes(app);
 
 app.get('/test', async function (req, res) {
     sendRequestToWorld({type: 'pickup', whid: 2});
@@ -69,17 +69,23 @@ app.get('/worldid', async function (req, res) {
 });
 
 app.post('/amazonEndpoint', async function (req, res) {
-    let request = String(req.body);
-    console.log(request);
+    let request = JSON.parse(req.body);
     if (request.startDelivery !== undefined ) {
         try {
-            let result = await addNewOrder(request, trackingNumber);
-            sendRequestToWorld({type: 'pickup', whid: Number(request.startDelivery.warehouseID), packageid: trackingNumber});
+            await addNewOrder(request, trackingNumber);
+            let pickup = {type: 'pickup', whid: Number(request.startDelivery.warehouseID), packageid: trackingNumber}
+            let truckid = IDLE_TRUCKS.shift()
+            if (truckid === undefined) {
+                PICKUP_QUEUE.push(pickup);
+            } else {
+                pickup['truckid'] = truckid;
+                PACKAGE_TRUCK_MAP[trackingNumber] = Number(truckid);
+                sendRequestToWorld(pickup);
+            }
             res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
             trackingNumber++;
         } catch (err) {
-            console.log(trackingNumber);
-            res.status(REQUEST_ERROR).send("Missing parameters");
+            res.status(REQUEST_ERROR).send(err);
         }
     } else if (request.deliveryStatus !== undefined) {
 
@@ -96,13 +102,7 @@ app.post('/amazonEndpoint', async function (req, res) {
 
 function generatePickupPayload(command, root) {
     let UGoPickup = root.lookupType('UGoPickup');
-    let truckid = IDLE_TRUCKS.shift();
-    if (truckid === undefined) {
-        PICKUP_QUEUE.push(command);
-        return null;
-    }
-    PACKAGE_TRUCK_MAP[command.packageid] = truckid;
-    let pickupPayload = {truckid: truckid, whid: command.whid, seqnum: seqNum};
+    let pickupPayload = {truckid: command.truckid, whid: command.whid, seqnum: seqNum};
     let errMsg = UGoPickup.verify(pickupPayload);
     if (errMsg) {
         throw Error(errMsg);
@@ -134,11 +134,7 @@ function sendRequestToWorld(command) {
         let UCommands = root.lookupType('UCommands');
         let commandPayload;
         if (command.type === 'pickup') {
-            let pickupPayload = generatePickupPayload(command, root);
-            if (pickupPayload == null) {
-                return;
-            }
-            commandPayload = {pickups: [pickupPayload]};
+            commandPayload = {pickups: [generatePickupPayload(command, root)]};
         } else {
             commandPayload = {deliveries: [generateDeliverPayload(command, root)]};
         }
@@ -147,7 +143,8 @@ function sendRequestToWorld(command) {
             throw Error(errMsg);
         }
         let message = UCommands.create(commandPayload);
-        let buffer = UCommands.encodeDelimited(commandPayload).finish();
+        console.log(message);
+        let buffer = UCommands.encodeDelimited(message).finish();
         if (WORLD_SIM_SERVER.write(buffer)) {
             seqNum++;
         } else {
