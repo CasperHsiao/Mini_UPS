@@ -3,7 +3,7 @@ import routes from './src/routes/main_route';
 import mongoose from 'mongoose';
 import jspb from 'protobufjs';
 import net from 'net';
-import { addNewOrder } from './src/controllers/main_controller';
+import { addNewOrder, editPackageAddress, getPackageStatus } from './src/controllers/main_controller';
 import { request } from 'http';
 import { Mutex } from 'async-mutex'
 
@@ -92,24 +92,37 @@ app.post('/amazonEndpoint', async function (req, res) {
                 sendRequestToWorld(pickup);
             }
         } catch (err) {
-            res.status(SERVER_ERROR).send("Something went on on the server, try again later.");
+            res.status(REQUEST_ERROR).send(err.message);
         }
     } else if (request.deliveryStatus !== undefined) {
         let trackingNumber = request.deliveryStatus.trackingNumber;
         try {
+            let result = await getPackageStatus(trackingNumber); 
+            res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
+        } catch (err) {
+            res.status(REQUEST_ERROR).send(err.message);
+        }
+    } else if (request.editAddress !== undefined) {
+        let trackingNumber = request.editAddress.trackingNumber;
+        let newAddress = request.editAddress.address;
+        try {
+            let result = await editPackageAddress(trackingNumber, newAddress); // await check database 
+            res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
+        } catch (err) {
+            res.status(REQUEST_ERROR).send(err.message);
+        }
+    } else if (request.cancelAddress !== undefined) {
+        let trackingNumber = request.cancelAddress.trackingNumber;
+        try {
             let result; // await check database 
             res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
         } catch (err) {
-            res.status(SERVER_ERROR).send("Something went on on the server, try again later.");
+            res.status(REQUEST_ERROR).send(err.message);
         }
     } else if (request.truckLoaded !== undefined) {
-
-    } else if (request.editAddress !== undefined) {
-
-    } else if (request.cancelAddress !== undefined) {
-
+        let trackingNumber = request.truckLoaded.trackingNumber;
     } else {
-        res.status(REQUEST_ERROR).send("Missing parameters");
+        res.status(REQUEST_ERROR).send("Invalid request: missing or invalid request type");
     }
 });
 
@@ -200,9 +213,8 @@ function handleWorldResponses(data) {
         } catch (err){
             let UResponses = root.lookupType('UResponses');
             let message = UResponses.decodeDelimited(data);
-            handleUResponses(message);
             console.log(message);
-
+            handleUResponses(message);
         }
     });
 }
@@ -210,6 +222,7 @@ function handleWorldResponses(data) {
 function handleUResponses(response) {
     let completions = response.completions;
     let delivered = response.delivered;
+    let error = response.error;
     let acks = response.acks;
     for (let i = 0; i < acks.length; i++) {
         // for each ack stop sending the corresonping seqnum Ucommands
@@ -220,7 +233,18 @@ function handleUResponses(response) {
     for (let i = 0; i < delivered.length; i++) {
         handleDeliveredPackage(delivered[i]);   
     }
-    // need to handle error
+    for (let i = 0; i < error.length; i++) {
+        handleError(error[i]);   
+    }
+}
+
+function handleError(error) {
+    let errMsg = error.err;
+    let seqnum = error.seqnum;
+    sendAckToWorld(seqnum);
+    if (RECV_SEQ_MAP[seqnum] === undefined) {
+        console.log(errMsg);
+    }
 }
 
 function handleDeliveredPackage(delivered) {    

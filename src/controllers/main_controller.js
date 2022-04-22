@@ -83,7 +83,7 @@ export const editAddress = (req, res, next) => {
     });
 }
 
-export async function addNewOrder (reqOrder, trackingNumber) {
+export async function addNewOrder(reqOrder, trackingNumber) {
     let newOrder = new Order({'WarehouseID': reqOrder.startDelivery.warehouseID,
                             'ItemType': reqOrder.startDelivery.item,
                             'DeliverAddress': reqOrder.startDelivery.address,
@@ -92,17 +92,37 @@ export async function addNewOrder (reqOrder, trackingNumber) {
                             'Status': "preparing",
                             'Priority': reqOrder.startDelivery.priority
                     });
-    /*
-    newOrder.save((err, info) => {
-        if (err) {
-           throw new Error(err); 
-        }
-    });  
-    */
     try {
         let result = await newOrder.save();
     } catch (err) {
-        throw new Error(err);
+        throw err;
+    }
+}
+
+export async function editPackageAddress(trackingNumber, newAddress) {
+    try {
+        let result = await Order.findOneAndUpdate({"TrackNum" : trackingNumber, 'Status': "preparing"}, 
+                                                    {"DeliverAddress" : newAddress});
+        if (result) {
+            return "ok";
+        } else {
+            return "Failed to edit address";
+        }
+    } catch (err) {
+        throw err;
+    }
+}
+
+export async function getPackageStatus(trackingNumber) {
+    try {
+        let result = await Order.findOne({'TrackNum': trackingNumber});
+        if (result) {
+            return result.Status;
+        } else {
+            return "Tracking number doesn't exists!";
+        }
+    } catch (err) {
+        throw err;
     }
 }
 
