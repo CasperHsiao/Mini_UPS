@@ -5,6 +5,10 @@ import jspb from 'protobufjs';
 import net from 'net';
 import { addNewOrder } from './src/controllers/main_controller';
 import { request } from 'http';
+import { Mutex } from 'async-mutex'
+
+const mutexTrack = new Mutex();
+const mutexSeq = new Mutex();
 
 const app = express();
 var path = require('path')
@@ -22,21 +26,23 @@ var WORLD_ID = null;
 const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
 const PACKAGE_TRUCK_MAP = {};
-var trackingNumber = 0;
-var seqNum = 0;
-
-/*
-{
-    "trackingNumber": 2345
-    "warehouseId": 1234
-}
-*/
-
+const RECV_SEQ_MAP = {};
+var Tracking_Number = 0;
+var Sequence_Number = 0;
 
 
 // ejs view engine
-app.set('views', path.join(__dirname, 'views'))
-app.set('view engine', 'ejs')
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+//bodyparser setup
+app.use(express.static("public"));
+app.use(express.urlencoded({extended: true}));
+
+// Changed to String
+app.use(express.text());
+
+routes(app);
 
 
 // mongoose connection
@@ -48,41 +54,54 @@ mongoose.connect('mongodb://127.0.0.1/UPSdb',{
 .catch(err => console.log( err ))
 .then(() => console.log( 'Database Connected' ));
 
-
-//bodyparser setup
-app.use(express.static("public"));
-app.use(express.urlencoded({extended: true}));
-
-// Changed to String
-app.use(express.text());
-
-routes(app);
-
-app.get('/test', async function (req, res) {
-    sendRequestToWorld({type: 'pickup', whid: 2});
-    res.json({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}});
-});
-
 app.get('/worldid', async function (req, res) {
     res.send(JSON.stringify({"worldid" : WORLD_ID}));
-
 });
 
+async function getTrackingNumber() {
+    const release = await mutexTrack.acquire();
+    let result = Tracking_Number;
+    Tracking_Number++;
+    release();
+    return result;
+}
+
+async function getSequenceNumber() {
+    const release = await mutexSeq.acquire();
+    let result = Sequence_Number;
+    Sequence_Number++;
+    release();
+    return result;
+}
+
 app.post('/amazonEndpoint', async function (req, res) {
-    let request = String(req.body);
-    console.log(request);
+    let request = JSON.parse(req.body);
     if (request.startDelivery !== undefined ) {
         try {
-            let result = await addNewOrder(request, trackingNumber);
-            sendRequestToWorld({type: 'pickup', whid: Number(request.startDelivery.warehouseID), packageid: trackingNumber});
-            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
-            trackingNumber++;
+            let trackingNumber = await getTrackingNumber();
+            await addNewOrder(request, trackingNumber);
+            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": trackingNumber}}));
+            let sequenceNumber = await getSequenceNumber();
+            let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber, 'seqnum': sequenceNumber};
+            let idleTruck = IDLE_TRUCKS.shift()
+            if (idleTruck === undefined) {
+                PICKUP_QUEUE.push(pickup);
+            } else {
+                pickup['truckid'] = idleTruck;
+                PACKAGE_TRUCK_MAP[pickup.packageid] = idleTruck;
+                sendRequestToWorld(pickup);
+            }
         } catch (err) {
-            console.log(trackingNumber);
-            res.status(REQUEST_ERROR).send("Missing parameters");
+            res.status(SERVER_ERROR).send("Something went on on the server, try again later.");
         }
     } else if (request.deliveryStatus !== undefined) {
-
+        let trackingNumber = request.deliveryStatus.trackingNumber;
+        try {
+            let result; // await check database 
+            res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
+        } catch (err) {
+            res.status(SERVER_ERROR).send("Something went on on the server, try again later.");
+        }
     } else if (request.truckLoaded !== undefined) {
 
     } else if (request.editAddress !== undefined) {
@@ -94,15 +113,10 @@ app.post('/amazonEndpoint', async function (req, res) {
     }
 });
 
+
 function generatePickupPayload(command, root) {
     let UGoPickup = root.lookupType('UGoPickup');
-    let truckid = IDLE_TRUCKS.shift();
-    if (truckid === undefined) {
-        PICKUP_QUEUE.push(command);
-        return null;
-    }
-    PACKAGE_TRUCK_MAP[command.packageid] = truckid;
-    let pickupPayload = {truckid: truckid, whid: command.whid, seqnum: seqNum};
+    let pickupPayload = {'truckid': command.truckid, 'whid': command.whid, 'seqnum': command.seqnum};
     let errMsg = UGoPickup.verify(pickupPayload);
     if (errMsg) {
         throw Error(errMsg);
@@ -113,12 +127,12 @@ function generatePickupPayload(command, root) {
 function generateDeliverPayload(command, root) {
     let UGoDeliver = root.lookupType('UGoDeliver');
     let UDeliveryLocation = root.lookupType('UDeliveryLocation');
-    let deliveryLocationPayload = {packageid: command.packageid, x: command.x, y: command.y};
+    let deliveryLocationPayload = {'packageid': command.packageid, 'x': command.x, 'y': command.y};
     let errMsg = UDeliveryLocation.verify(deliveryLocationPayload);
     if (errMsg) {
         throw Error(errMsg);
     }
-    let deliverPayload = {truckid: command.truckid, packages: [deliveryLocationPayload], seqnum: seqNum};
+    let deliverPayload = {'truckid': command.truckid, 'packages': [deliveryLocationPayload], 'seqnum': command.seqnum};
     errMsg = UGoDeliver.verify(deliverPayload);
     if (errMsg) {
         throw Error(errMsg);
@@ -134,11 +148,7 @@ function sendRequestToWorld(command) {
         let UCommands = root.lookupType('UCommands');
         let commandPayload;
         if (command.type === 'pickup') {
-            let pickupPayload = generatePickupPayload(command, root);
-            if (pickupPayload == null) {
-                return;
-            }
-            commandPayload = {pickups: [pickupPayload]};
+            commandPayload = {pickups: [generatePickupPayload(command, root)]};
         } else {
             commandPayload = {deliveries: [generateDeliverPayload(command, root)]};
         }
@@ -147,14 +157,31 @@ function sendRequestToWorld(command) {
             throw Error(errMsg);
         }
         let message = UCommands.create(commandPayload);
-        let buffer = UCommands.encodeDelimited(commandPayload).finish();
-        if (WORLD_SIM_SERVER.write(buffer)) {
-            seqNum++;
-        } else {
-            JOB_QUEUE.push(command);
-        }
+        console.log(message);
+        let buffer = UCommands.encodeDelimited(message).finish();
+        WORLD_SIM_SERVER.write(buffer)
     });
 }
+
+function sendAckToWorld(ack) {
+    jspb.load(UPS_PROTO, (err, root) => {
+        if (err) {
+            throw Error(err);
+        }
+        let UCommands = root.lookupType('UCommands');
+        let commandPayload = {'acks': [ack]};
+        let errMsg = UCommands.verify(commandPayload);
+        if (errMsg) {
+            throw Error(errMsg);
+        }
+        let message = UCommands.create(commandPayload);
+        console.log(message);
+        let buffer = UCommands.encodeDelimited(message).finish();
+        WORLD_SIM_SERVER.write(buffer)
+    });
+}
+
+
 
 function handleWorldResponses(data) {
     console.log("Data received from world simulator server");
@@ -182,17 +209,50 @@ function handleWorldResponses(data) {
 
 function handleUResponses(response) {
     let completions = response.completions;
+    let delivered = response.delivered;
+    let acks = response.acks;
+    for (let i = 0; i < acks.length; i++) {
+        // for each ack stop sending the corresonping seqnum Ucommands
+    }
     for (let i = 0; i < completions.length; i++) {
         handleFinishedTruck(completions[i]);
+    }
+    for (let i = 0; i < delivered.length; i++) {
+        handleDeliveredPackage(delivered[i]);   
+    }
+    // need to handle error
+}
+
+function handleDeliveredPackage(delivered) {    
+    let trackingNumber = delivered.packageid;
+    let seqnum = delivered.seqnum;
+    sendAckToWorld(seqnum);
+    if (RECV_SEQ_MAP[seqnum] === undefined) {
+        RECV_SEQ_MAP[seqnum] = true;
+        // request amazon
+        // update database to delivered
     }
 }
 
 function handleFinishedTruck(finished) {
     let status = finished.status;
-    //update database
-    if (status === 'idle') {
-        IDLE_TRUCKS.push(finished.truckid);
-        
+    let seqnum = finished.seqnum;
+    let truckid = finished.truckid;
+    sendAckToWorld(seqnum);
+    if (RECV_SEQ_MAP[seqnum] === undefined) {
+        RECV_SEQ_MAP[seqnum] = true;
+        if (status === 'IDLE') {
+            let pickup = PICKUP_QUEUE.shift();
+            if (pickup === undefined) {
+                IDLE_TRUCKS.push(truckid);
+            } else {
+                pickup['truckid'] = truckid;
+                PACKAGE_TRUCK_MAP[pickup.packageid] = truckid;
+                sendRequestToWorld(pickup);
+            }
+        } else if (status === 'ARRIVE WAREHOUSE') {
+            // request amazon
+        }
     }
 }
 
