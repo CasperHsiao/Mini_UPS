@@ -14,8 +14,11 @@ export const OrderSchema = new Schema({
         type: Number,
         required: 'Enter a Warehouse ID'
     },
-    DeliverAddress: {
-        type: String // required?? //format checking?? "x,y" where x and y are integers
+    DeliverAddress_X: {
+        type: Number // required?? //format checking?? "x,y" where x and y are integers
+    },
+    DeliverAddress_Y: {
+        type: Number // required?? //format checking?? "x,y" where x and y are integers
     },
     ItemType: {
         type: String
