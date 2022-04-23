@@ -45,7 +45,7 @@
               <label> UserName: <%= order.UserName %> </label> &emsp;
               <label> TrackNum: <%= order.TrackNum %> </label> &emsp;
               <label> WarehouseID: <%= order.WarehouseID %> </label> &emsp;
-              <label> Deliver Address: <%= order.DeliverAddress %> </label> &emsp;
+              <label> Deliver Address: <%= order.DeliverAddress_X %>,<%= order.DeliverAddress_Y %> </label> &emsp;
               <input type="text" name="DeliverAddress" placeholder="New Address" required>
               <input type="submit" value="Track" id="track-button">
               <input type="hidden" name="TrackNum" value= <%= order.TrackNum %> >

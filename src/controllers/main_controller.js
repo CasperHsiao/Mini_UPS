@@ -63,6 +63,7 @@ export const getTrackingInfo = (req, res) => {
         if (err) {
             // res.send(err);
             res.render("./pages/index", {login: false , error: true, order:"", msg: err});
+            return;
         }
         if (TrackingOrder) {
             res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
@@ -74,14 +75,26 @@ export const getTrackingInfo = (req, res) => {
 }
 
 export const editAddress = (req, res, next) => {
-    Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum, 'Status': "preparing"},
-                            {"DeliverAddress" : req.body.DeliverAddress}, (err, contact) => {
-        if (err) {
-            res.send(err);
-        }
-        req.app.set('UseName', req.body.UserName);
+    const regex = new RegExp('[0-9]+,[0-9]+');
+    let result = regex.test(req.body.DeliverAddress);
+
+    req.app.set('UseName', req.body.UserName);
+
+    if(!result){
         next();
-    });
+    }
+    else{
+        let processed_address = req.body.DeliverAddress.split(',', 2);
+
+        Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum, 'Status': "preparing"},
+                                {"DeliverAddress_X" : processed_address[0],
+                                "DeliverAddress_Y" : processed_address[1]}, (err, contact) => {
+            if (err) {
+                res.send(err);
+            }
+            next();
+        });
+    }
 }
 
 export async function addNewOrder(reqOrder, trackingNumber) {
