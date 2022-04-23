@@ -115,6 +115,17 @@ export async function addNewOrder(reqOrder, trackingNumber) {
     }
 }
 
+export async function getOrderAndUpdateStatus(trackingNumber, status) {
+    try {
+        let result = await Order.findOneAndUpdate({'TrackNum': trackingNumber}, {'Status': status});
+        return result;
+    } catch (err) {
+        throw err;
+    }
+}
+
+
+
 // export const addnewContact = (req, res) => {
 //     let newContact = new Contact(req.body);
 
