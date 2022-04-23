@@ -70,6 +70,14 @@ async function getTrackingNumber() {
     return result;
 }
 
+async function decrTrackingNumber() {
+    const release = await mutexTrack.acquire();
+    let result = Tracking_Number;
+    Tracking_Number--;
+    release();
+    return result;
+}
+
 async function getSequenceNumber() {
     const release = await mutexSeq.acquire();
     let result = Sequence_Number;
@@ -84,12 +92,13 @@ app.get('/worldid', async function (req, res) {
 app.post('/amazonEndpoint', async function (req, res) {
     let request = JSON.parse(req.body);
     if (request.startDelivery !== undefined ) {
+        let trackingNumber;
         try {
-            let trackingNumber = await getTrackingNumber();
+            trackingNumber = await getTrackingNumber();
             await addNewOrder(request, trackingNumber);
             let sequenceNumber = await getSequenceNumber();
             let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber, 'seqnum': sequenceNumber};
-            let idleTruck = IDLE_TRUCKS.shift()
+            let idleTruck = IDLE_TRUCKS.shift();
             if (idleTruck === undefined) {
                 PICKUP_QUEUE.push(pickup);
             } else {
@@ -98,56 +107,48 @@ app.post('/amazonEndpoint', async function (req, res) {
                 TRUCK_PACKAGE_MAP[idleTruck] = pickup.packageid;
                 sendRequestToWorld(pickup);
             }
-            
-            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": trackingNumber}}));
+            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
         } catch (err) {
-            res.status(REQUEST_ERROR).send(err.message);
+            res.status(REQUEST_ERROR);
+            res.send(JSON.stringify({"startDelivery": {"result": err.message, "trackingNumber": String(trackingNumber)}}));
+            decrTrackingNumber();
         }
     } else if (request.deliveryStatus !== undefined) {
         let trackingNumber = request.deliveryStatus.trackingNumber;
         try {
             let result = await getOrderStatus(trackingNumber);
-            if (result === null) {
-                res.send(JSON.stringify({"deliveryStatus": {"status": "Tracking number is invalid", "trackingNumber": trackingNumber}}));
-            } else {
-                res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": trackingNumber}}));
-            }
+            res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": String(trackingNumber)}}));
         } catch (err) {
-            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": trackingNumber}}));
-            //res.status(REQUEST_ERROR).send(err.message);
+            res.status(REQUEST_ERROR)
+            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
         }
     } else if (request.editAddress !== undefined) {
         let trackingNumber = request.editAddress.trackingNumber;
         let newAddress = request.editAddress.address;
         try {
-            let result = await editOrderAddress(trackingNumber, newAddress); // await check database 
-            if (result === null) {
-                res.send(JSON.stringify({"editAddress": {"result": "Failed to edit address", "trackingNumber": trackingNumber}}));
-            } else {
-                res.send(JSON.stringify({"editAddress": {"result": "ok", "trackingNumber": trackingNumber}}));
-            }
+            await editOrderAddress(trackingNumber, newAddress); // await check database
+            res.send(JSON.stringify({"editAddress": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
         } catch (err) {
-            res.send(JSON.stringify({"editAddress": {"result": err.message, "trackingNumber": trackingNumber}}));
-            //res.status(REQUEST_ERROR).send(err.message);
+            res.status(REQUEST_ERROR)
+            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
         }
     } else if (request.truckLoaded !== undefined) {
         let trackingNumber = request.truckLoaded.trackingNumber;
         try {
             let order = await getOrderAndUpdateStatus(trackingNumber, 'delivering');
-            if (order === null) {
-                res.send(JSON.stringify({"deliveryStatus": {"result": "Failed to pickup package", "trackingNumber": trackingNumber}}));
-            } else {
-                let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
-                let seqnum = await getSequenceNumber();
-                let x = order.DeliveryAddress_X;
-                let y = order.DeliveryAddress_Y;
-                let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
-                sendRequestToWorld(delivery);
-                res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
-            }     
+            let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
+            if (truckid === undefined) {
+                throw Error ("Failed to located truck with the tracking number provided");
+            }
+            let seqnum = await getSequenceNumber();
+            let x = order.DeliverAddress_X;
+            let y = order.DeliverAddress_Y;
+            let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
+            sendRequestToWorld(delivery);
+            res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": String(trackingNumber)}}));   
         } catch (err) {
-            res.send(JSON.stringify({"deliveryStatus": {"result": err.message, "trackingNumber": trackingNumber}}));
-            //res.status(REQUEST_ERROR).send(err.message);
+            res.status(REQUEST_ERROR)
+            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
         }
     } else {
         res.status(REQUEST_ERROR).send("Invalid request: missing or invalid request type");
