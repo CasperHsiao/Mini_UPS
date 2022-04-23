@@ -1,0 +1,36 @@
+// MongoDB Playground
+// Use Ctrl+Space inside a snippet or a string literal to trigger completions.
+
+const database = 'UPSdb';
+const collection = 'orders';
+
+// Create a new database.
+use(database);
+
+// Create a new collection.
+// db.createCollection(collection);
+db.orders.insertMany([{UserName:"zxc", TrackNum:123, WarehouseID:1, Status:"preparing"},
+                      {UserName:"zxc", TrackNum:124, WarehouseID:1, Status:"preparing"},
+                      {UserName:"zxc", TrackNum:125, WarehouseID:2, Status:"preparing"},
+                      {UserName:"zxc", TrackNum:126, WarehouseID:2, Status:"preparing"}
+])
+
+// The prototype form to create a collection:
+/* db.createCollection( <name>,
+  {
+    capped: <boolean>,
+    autoIndexId: <boolean>,
+    size: <number>,
+    max: <number>,
+    storageEngine: <document>,
+    validator: <document>,
+    validationLevel: <string>,
+    validationAction: <string>,
+    indexOptionDefaults: <document>,
+    viewOn: <string>,
+    pipeline: <pipeline>,
+    collation: <document>,
+    writeConcern: <document>
+  }
+)*/
+

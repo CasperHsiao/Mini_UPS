@@ -61,7 +61,9 @@ export const getYourOrder = (req, res) => {
 export const getTrackingInfo = (req, res) => {
     Order.findOne({"TrackNum" : req.body.TrackNum}, (err, TrackingOrder) => {
         if (err) {
-            res.send(err);
+            // res.send(err);
+            res.render("./pages/index", {login: false , error: true, order:"", msg: err});
+            return;
         }
         if (TrackingOrder) {
             res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
@@ -73,27 +75,50 @@ export const getTrackingInfo = (req, res) => {
 }
 
 export const editAddress = (req, res, next) => {
-    Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum, 'Status': "preparing"},
-                            {"DeliverAddress" : req.body.DeliverAddress}, (err, contact) => {
-        if (err) {
-            res.send(err);
-        }
-        req.app.set('UseName', req.body.UserName);
+    const regex = new RegExp('[0-9]+,[0-9]+');
+    let result = regex.test(req.body.DeliverAddress);
+
+    req.app.set('UseName', req.body.UserName);
+
+    if(!result){
         next();
-    });
+    }
+    else{
+        let processed_address = req.body.DeliverAddress.split(',', 2);
+
+        Order.findOneAndUpdate({"TrackNum" : req.body.TrackNum, 'Status': "preparing"},
+                                {"DeliverAddress_X" : processed_address[0],
+                                "DeliverAddress_Y" : processed_address[1]}, (err, contact) => {
+            if (err) {
+                res.send(err);
+            }
+            next();
+        });
+    }
 }
 
-export async function addNewOrder(reqOrder, trackingNumber) {
-    let newOrder = new Order({'WarehouseID': reqOrder.startDelivery.warehouseID,
-                            'ItemType': reqOrder.startDelivery.item,
-                            'DeliverAddress': reqOrder.startDelivery.address,
-                            'UserName': reqOrder.startDelivery.UPS_account,
-                            'TrackNum': trackingNumber,
-                            'Status': "preparing",
-                            'Priority': reqOrder.startDelivery.priority
-                    });
-    try {
+export async function addNewOrder(reqOrderJson, trackingNumber) {
+    const regex = new RegExp('[0-9]+,[0-9]+');
+    let result = regex.test(reqOrderJson.startDelivery.address);
+
+    if(!result){
+        throw new Error("Invalid delivery address format");
+    }
+    
+    let processed_address = reqOrderJson.startDelivery.address.split(',', 2);
+    let newOrder = new Order({'WarehouseID': reqOrderJson.startDelivery.warehouseID,
+        'ItemType': reqOrderJson.startDelivery.item,
+        'DeliverAddress_X': processed_address[0],
+        'DeliverAddress_Y': processed_address[1],
+        'UserName': reqOrderJson.startDelivery.UPS_account,
+        'TrackNum': trackingNumber,
+        'Status': "preparing",
+        'Priority': reqOrderJson.startDelivery.priority
+    });
+
+    try{
         await newOrder.save();
+        // console.log(result);
     } catch (err) {
         throw err;
     }
@@ -101,8 +126,21 @@ export async function addNewOrder(reqOrder, trackingNumber) {
 
 export async function editOrderAddress(trackingNumber, newAddress) {
     try {
-        let result = await Order.findOneAndUpdate({"TrackNum" : trackingNumber, 'Status': "preparing"}, 
+        const regex = new RegExp('[0-9]+,[0-9]+');
+        let result = regex.test(newAddress);
+
+        if(!result){
+            throw new Error("Invalid delivery address format");
+        }
+        
+        result = await Order.findOneAndUpdate({"TrackNum" : trackingNumber}, 
                                                     {"DeliverAddress" : newAddress});
+        if(!result){
+            throw new Error("Invalid tracking number");
+        }
+        if (result.Status !== 'preparing') {
+            throw new Error("Package already delivering");
+        }
         return result;
     } catch (err) {
         throw err;
@@ -112,15 +150,22 @@ export async function editOrderAddress(trackingNumber, newAddress) {
 export async function getOrderStatus(trackingNumber) {
     try {
         let result = await Order.findOne({'TrackNum': trackingNumber});
+        if(!result){
+            throw new Error("Invalid tracking number");
+        }
         return result;
     } catch (err) {
         throw err;
     }
 }
 
+
 export async function getOrderAndUpdateStatus(trackingNumber, status) {
     try {
         let result = await Order.findOneAndUpdate({'TrackNum': trackingNumber}, {'Status': status});
+        if(!result){
+            throw new Error("Invalid tracking number");
+        }
         return result;
     } catch (err) {
         throw err;
