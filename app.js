@@ -32,7 +32,7 @@ var Tracking_Number = 0;
 var Sequence_Number = 0;
 
 var AMAZON_ENDPOINT = {
-    host: 'vcm-xxxxx.vm.duke.edu',
+    host: 'vcm-24767.vm.duke.edu',
     port: 8000,
     path: '/upsEndpoint',
     method: 'POST',
@@ -61,12 +61,6 @@ mongoose.connect('mongodb://127.0.0.1/UPSdb',{
 })
 .catch(err => console.log( err ))
 .then(() => console.log( 'Database Connected' ));
-
-app.get('/worldid', async function (req, res) {
-    res.send(JSON.stringify({"worldid" : WORLD_ID}));
-    let data = JSON.stringify({"truckArrived": {"trackingNumber": TRUCK_PACKAGE_MAP[1], "truckid": 1}});
-    sendRequestToAmazon(data);
-});
 
 async function getTrackingNumber() {
     const release = await mutexTrack.acquire();
@@ -327,7 +321,8 @@ function sendRequestToAmazon(data) {
         console.error(error)
       });
     req.write(data);
-    req.end();
+    console.log(data);
+    //req.end();
 }
 
 function connectToWorldSimServer() {
@@ -368,9 +363,9 @@ function connectToWorld() {
             UInitTruckPayload.push(temp);
             IDLE_TRUCKS.push(i);
         }
-        let UConnectPayload = {trucks: UInitTruckPayload, isAmazon: false};
+        let UConnectPayload = {'trucks': UInitTruckPayload, 'isAmazon': false};
         if (WORLD_ID != null) {
-            UConnectPayload = {worldid: WORLD_ID, isAmazon: false};
+            UConnectPayload = {'worldid': WORLD_ID, 'isAmazon': false};
         }
         let errMsg = UConnect.verify(UConnectPayload);
         if (errMsg) {
@@ -446,3 +441,38 @@ function promiseHandleWorldResponses(data, resolve) {
     });
 }
 */
+
+const Mock_Amazon = new net.Socket();
+const A_PROTO = 'world_amazon.proto';
+app.get('/aConnect', async function (req, res) {
+    Mock_Amazon.on('connect', () => {
+        jspb.load(A_PROTO, (err, root) => {
+            if (err) {
+                throw Error(err);
+            }
+            let AConnect = root.lookupType('AConnect');
+            let AInitWarehouse = root.lookupType("AInitWarehouse");
+            let AInitWarehousePayload = {'id': 0, 'x': 10, 'y': 1 };
+            let errMsg = AInitWarehouse.verify(AInitWarehousePayload);
+            if (errMsg) {
+                throw Error(errMsg);
+            }
+            let AConnectPayload = {'worldid': WORLD_ID, 'initwh': [AInitWarehousePayload], 'isAmazon': true};
+            errMsg = AConnect.verify(AConnectPayload);
+            if (errMsg) {
+                throw Error(errMsg);
+            }
+            let message = AConnect.create(AConnectPayload);
+            let buffer = AConnect.encodeDelimited(message).finish();
+            Mock_Amazon.write(buffer);
+        });
+    });
+    Mock_Amazon.connect({host: WORLD_URL, port: 23456});
+    res.send();
+});
+
+app.post('/upsEndpoint', async function (req, res) {
+    //let request = JSON.parse(req.body);
+    console.log(req.body);
+    res.send();
+});
