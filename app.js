@@ -3,7 +3,7 @@ import routes from './src/routes/main_route';
 import mongoose from 'mongoose';
 import jspb from 'protobufjs';
 import net from 'net';
-import { addNewOrder, editPackageAddress, getPackageStatus } from './src/controllers/main_controller';
+import { addNewOrder, editOrderAddress, editPackageAddress, getOrder, getOrderAndUpdateStatus, getOrderStatus, getPackageStatus } from './src/controllers/main_controller';
 import { request } from 'http';
 import { Mutex } from 'async-mutex'
 
@@ -26,9 +26,17 @@ var WORLD_ID = null;
 const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
 const PACKAGE_TRUCK_MAP = {};
+const TRUCK_PACKAGE_MAP = {};
 const RECV_SEQ_MAP = {};
 var Tracking_Number = 0;
 var Sequence_Number = 0;
+
+var AMAZON_ENDPOINT = {
+    host: 'vcm-xxxxx.vm.duke.edu',
+    port: 8000,
+    path: '/upsEndpoint',
+    method: 'POST',
+};
 
 
 // ejs view engine
@@ -56,6 +64,8 @@ mongoose.connect('mongodb://127.0.0.1/UPSdb',{
 
 app.get('/worldid', async function (req, res) {
     res.send(JSON.stringify({"worldid" : WORLD_ID}));
+    let data = JSON.stringify({"truckArrived": {"trackingNumber": TRUCK_PACKAGE_MAP[1], "truckid": 1}});
+    sendRequestToAmazon(data);
 });
 
 async function getTrackingNumber() {
@@ -80,7 +90,6 @@ app.post('/amazonEndpoint', async function (req, res) {
         try {
             let trackingNumber = await getTrackingNumber();
             await addNewOrder(request, trackingNumber);
-            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": trackingNumber}}));
             let sequenceNumber = await getSequenceNumber();
             let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber, 'seqnum': sequenceNumber};
             let idleTruck = IDLE_TRUCKS.shift()
@@ -89,16 +98,23 @@ app.post('/amazonEndpoint', async function (req, res) {
             } else {
                 pickup['truckid'] = idleTruck;
                 PACKAGE_TRUCK_MAP[pickup.packageid] = idleTruck;
+                TRUCK_PACKAGE_MAP[idleTruck] = pickup.packageid;
                 sendRequestToWorld(pickup);
             }
+            
+            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": trackingNumber}}));
         } catch (err) {
             res.status(REQUEST_ERROR).send(err.message);
         }
     } else if (request.deliveryStatus !== undefined) {
         let trackingNumber = request.deliveryStatus.trackingNumber;
         try {
-            let result = await getPackageStatus(trackingNumber); 
-            res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
+            let result = await getOrderStatus(trackingNumber);
+            if (result === null) {
+                res.send(JSON.stringify({"deliveryStatus": {"status": "Tracking number is invalid", "trackingNumber": trackingNumber}}));
+            } else {
+                res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": trackingNumber}}));
+            }
         } catch (err) {
             res.status(REQUEST_ERROR).send(err.message);
         }
@@ -106,21 +122,33 @@ app.post('/amazonEndpoint', async function (req, res) {
         let trackingNumber = request.editAddress.trackingNumber;
         let newAddress = request.editAddress.address;
         try {
-            let result = await editPackageAddress(trackingNumber, newAddress); // await check database 
-            res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
-        } catch (err) {
-            res.status(REQUEST_ERROR).send(err.message);
-        }
-    } else if (request.cancelAddress !== undefined) {
-        let trackingNumber = request.cancelAddress.trackingNumber;
-        try {
-            let result; // await check database 
-            res.send(JSON.stringify({"deliveryStatus": {"status": result, "trackingNumber": trackingNumber}}));
+            let result = await editOrderAddress(trackingNumber, newAddress); // await check database 
+            if (result === null) {
+                res.send(JSON.stringify({"deliveryStatus": {"result": "Failed to edit address", "trackingNumber": trackingNumber}}));
+            } else {
+                res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
+            }
         } catch (err) {
             res.status(REQUEST_ERROR).send(err.message);
         }
     } else if (request.truckLoaded !== undefined) {
         let trackingNumber = request.truckLoaded.trackingNumber;
+        try {
+            let order = await getOrderAndUpdateStatus(trackingNumber, 'delivering');
+            if (order === null) {
+                res.send(JSON.stringify({"deliveryStatus": {"result": "Failed to pickup package", "trackingNumber": trackingNumber}}));
+            } else {
+                let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
+                let seqnum = await getSequenceNumber();
+                let x = Number(order.DeliverAddress.split(",")[0]);
+                let y = Number(order.DeliverAddress.split(",")[1]);
+                let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
+                sendRequestToWorld(delivery);
+                res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
+            }     
+        } catch (err) {
+            res.status(REQUEST_ERROR).send(err.message);
+        }
     } else {
         res.status(REQUEST_ERROR).send("Invalid request: missing or invalid request type");
     }
@@ -234,11 +262,11 @@ function handleUResponses(response) {
         handleDeliveredPackage(delivered[i]);   
     }
     for (let i = 0; i < error.length; i++) {
-        handleError(error[i]);   
+        handleWorldError(error[i]);   
     }
 }
 
-function handleError(error) {
+function handleWorldError(error) {
     let errMsg = error.err;
     let seqnum = error.seqnum;
     sendAckToWorld(seqnum);
@@ -253,8 +281,9 @@ function handleDeliveredPackage(delivered) {
     sendAckToWorld(seqnum);
     if (RECV_SEQ_MAP[seqnum] === undefined) {
         RECV_SEQ_MAP[seqnum] = true;
-        // request amazon
-        // update database to delivered
+        getOrderAndUpdateStatus(trackingNumber, 'delivered');
+        let data = JSON.stringify({"packageDelivered": {"trackingNumber": trackingNumber}});
+        sendRequestToAmazon(data);
     }
 }
 
@@ -272,12 +301,33 @@ function handleFinishedTruck(finished) {
             } else {
                 pickup['truckid'] = truckid;
                 PACKAGE_TRUCK_MAP[pickup.packageid] = truckid;
+                TRUCK_PACKAGE_MAP[truckid] = pickup.packageid;
                 sendRequestToWorld(pickup);
             }
         } else if (status === 'ARRIVE WAREHOUSE') {
-            // request amazon
+            let data = JSON.stringify({"truckArrived": {"trackingNumber": TRUCK_PACKAGE_MAP[truckid], "truckid": truckid}});
+            sendRequestToAmazon(data);
         }
     }
+}
+
+function sendRequestToAmazon(data) {
+    let options = AMAZON_ENDPOINT;
+    options['headers'] = {
+        'Content-Type': 'application/json',
+        'Content-Length': data.length
+        }
+    let req = request(options, (res) => {
+        res.setEncoding('utf8');
+        res.on('data', function (chunk) {
+            console.log("body: " + chunk);
+        });
+    });
+    req.on('error', error => {
+        console.error(error)
+      });
+    req.write(data);
+    req.end();
 }
 
 function connectToWorldSimServer() {
@@ -329,7 +379,6 @@ function connectToWorld() {
         let message = UConnect.create(UConnectPayload);
         let buffer = UConnect.encodeDelimited(message).finish();
         WORLD_SIM_SERVER.write(buffer);
-        //receiveRequestFromWorld();
     });
 }
 

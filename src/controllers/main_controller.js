@@ -93,38 +93,41 @@ export async function addNewOrder(reqOrder, trackingNumber) {
                             'Priority': reqOrder.startDelivery.priority
                     });
     try {
-        let result = await newOrder.save();
+        await newOrder.save();
     } catch (err) {
         throw err;
     }
 }
 
-export async function editPackageAddress(trackingNumber, newAddress) {
+export async function editOrderAddress(trackingNumber, newAddress) {
     try {
         let result = await Order.findOneAndUpdate({"TrackNum" : trackingNumber, 'Status': "preparing"}, 
                                                     {"DeliverAddress" : newAddress});
-        if (result) {
-            return "ok";
-        } else {
-            return "Failed to edit address";
-        }
+        return result;
     } catch (err) {
         throw err;
     }
 }
 
-export async function getPackageStatus(trackingNumber) {
+export async function getOrderStatus(trackingNumber) {
     try {
         let result = await Order.findOne({'TrackNum': trackingNumber});
-        if (result) {
-            return result.Status;
-        } else {
-            return "Tracking number doesn't exists!";
-        }
+        return result;
     } catch (err) {
         throw err;
     }
 }
+
+export async function getOrderAndUpdateStatus(trackingNumber, status) {
+    try {
+        let result = await Order.findOneAndUpdate({'TrackNum': trackingNumber}, {'Status': status});
+        return result;
+    } catch (err) {
+        throw err;
+    }
+}
+
+
 
 // export const addnewContact = (req, res) => {
 //     let newContact = new Contact(req.body);
