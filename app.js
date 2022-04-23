@@ -139,8 +139,8 @@ app.post('/amazonEndpoint', async function (req, res) {
             } else {
                 let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
                 let seqnum = await getSequenceNumber();
-                let x = Number(order.DeliverAddress.split(",")[0]);
-                let y = Number(order.DeliverAddress.split(",")[1]);
+                let x = order.DeliveryAddress_X;
+                let y = order.DeliveryAddress_Y;
                 let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
                 sendRequestToWorld(delivery);
                 res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
