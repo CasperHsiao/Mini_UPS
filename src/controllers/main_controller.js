@@ -84,20 +84,35 @@ export const editAddress = (req, res, next) => {
     });
 }
 
-export function addNewOrder (reqOrder) {
-    let newOrder = new Order({'WarehouseID': reqOrder.startDelivery.warehouseID,
-                            'ItemType': reqOrder.startDelivery.item,
-                            'DeliverAddress': reqOrder.startDelivery.address,
-                            'UserName': reqOrder.startDelivery.UPS_account,
-                            'Status': "preparing",
-                            'Priority': reqOrder.startDelivery.priority
-                    });
+export async function addNewOrder(reqOrder, trackingNumber) {
+    // console.log(reqOrder);
 
-    newOrder.save((err, info) => {
-        if (err) {
-           throw new Error(err); 
-        }
-    });    
+    const reqOrderJson = JSON.parse(reqOrder);
+
+    const regex = new RegExp('[0-9]+,[0-9]+');
+    let result = regex.test(reqOrderJson.startDelivery.address);
+
+    if(!result){
+        throw new Error("Invalid delivery address format");
+    }
+    
+    let processed_address = reqOrderJson.startDelivery.address.split(',', 2);
+    let newOrder = new Order({'WarehouseID': reqOrderJson.startDelivery.warehouseID,
+        'ItemType': reqOrderJson.startDelivery.item,
+        'DeliverAddress_X': processed_address[0],
+        'DeliverAddress_Y': processed_address[1],
+        'UserName': reqOrderJson.startDelivery.UPS_account,
+        'TrackNum': trackingNumber,
+        'Status': "preparing",
+        'Priority': reqOrderJson.startDelivery.priority
+    });
+
+    try{
+        await newOrder.save();
+        // console.log(result);
+    } catch (err) {
+        throw err;
+    }
 }
 
 // export const addnewContact = (req, res) => {
