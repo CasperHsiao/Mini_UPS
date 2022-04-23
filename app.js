@@ -21,7 +21,7 @@ const WORLD_URL = 'localhost';
 const WORLD_PORT_NUM = 12345;
 const UPS_PROTO = 'world_ups.proto';
 const WORLD_SIM_SERVER = connectToWorldSimServer();
-const NUM_TRUCKS = 100;
+const NUM_TRUCKS = 1;
 var WORLD_ID = null;
 const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
@@ -31,9 +31,9 @@ const RECV_SEQ_MAP = {};
 var Tracking_Number = 0;
 var Sequence_Number = 0;
 
-var AMAZON_ENDPOINT = {
+var Amazon_Endpoint = {
     host: 'vcm-24767.vm.duke.edu',
-    port: 8000,
+    port: 8080,
     path: '/upsEndpoint',
     method: 'POST',
 };
@@ -78,6 +78,9 @@ async function getSequenceNumber() {
     return result;
 }
 
+app.get('/worldid', async function (req, res) {
+    res.send(JSON.stringify({'worldid': WORLD_ID}));
+});
 app.post('/amazonEndpoint', async function (req, res) {
     let request = JSON.parse(req.body);
     if (request.startDelivery !== undefined ) {
@@ -110,7 +113,8 @@ app.post('/amazonEndpoint', async function (req, res) {
                 res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": trackingNumber}}));
             }
         } catch (err) {
-            res.status(REQUEST_ERROR).send(err.message);
+            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": trackingNumber}}));
+            //res.status(REQUEST_ERROR).send(err.message);
         }
     } else if (request.editAddress !== undefined) {
         let trackingNumber = request.editAddress.trackingNumber;
@@ -118,12 +122,13 @@ app.post('/amazonEndpoint', async function (req, res) {
         try {
             let result = await editOrderAddress(trackingNumber, newAddress); // await check database 
             if (result === null) {
-                res.send(JSON.stringify({"deliveryStatus": {"result": "Failed to edit address", "trackingNumber": trackingNumber}}));
+                res.send(JSON.stringify({"editAddress": {"result": "Failed to edit address", "trackingNumber": trackingNumber}}));
             } else {
-                res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
+                res.send(JSON.stringify({"editAddress": {"result": "ok", "trackingNumber": trackingNumber}}));
             }
         } catch (err) {
-            res.status(REQUEST_ERROR).send(err.message);
+            res.send(JSON.stringify({"editAddress": {"result": err.message, "trackingNumber": trackingNumber}}));
+            //res.status(REQUEST_ERROR).send(err.message);
         }
     } else if (request.truckLoaded !== undefined) {
         let trackingNumber = request.truckLoaded.trackingNumber;
@@ -141,7 +146,8 @@ app.post('/amazonEndpoint', async function (req, res) {
                 res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
             }     
         } catch (err) {
-            res.status(REQUEST_ERROR).send(err.message);
+            res.send(JSON.stringify({"deliveryStatus": {"result": err.message, "trackingNumber": trackingNumber}}));
+            //res.status(REQUEST_ERROR).send(err.message);
         }
     } else {
         res.status(REQUEST_ERROR).send("Invalid request: missing or invalid request type");
@@ -225,18 +231,18 @@ function handleWorldResponses(data) {
             throw err;
         }
         try {
+            let UResponses = root.lookupType('UResponses');
+            let message = UResponses.decodeDelimited(data);
+            console.log(message);
+            handleUResponses(message);
+        } catch (err){
             let UConnected = root.lookupType('UConnected');
             let message = UConnected.decodeDelimited(data);
             if (message.result == 'connected!') {
                 WORLD_ID = Number(message.worldid);
                 console.log("Connected to world " + WORLD_ID);
             }
-            console.log(message);
-        } catch (err){
-            let UResponses = root.lookupType('UResponses');
-            let message = UResponses.decodeDelimited(data);
-            console.log(message);
-            handleUResponses(message);
+            console.log(message);   
         }
     });
 }
@@ -306,9 +312,9 @@ function handleFinishedTruck(finished) {
 }
 
 function sendRequestToAmazon(data) {
-    let options = AMAZON_ENDPOINT;
+    let options = Amazon_Endpoint;
     options['headers'] = {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
         'Content-Length': data.length
         }
     let req = request(options, (res) => {
@@ -321,9 +327,9 @@ function sendRequestToAmazon(data) {
         console.error(error)
       });
     req.write(data);
-    console.log(data);
-    //req.end();
+    req.end();
 }
+
 
 function connectToWorldSimServer() {
     let worldSimServer = new net.Socket();
@@ -442,37 +448,3 @@ function promiseHandleWorldResponses(data, resolve) {
 }
 */
 
-const Mock_Amazon = new net.Socket();
-const A_PROTO = 'world_amazon.proto';
-app.get('/aConnect', async function (req, res) {
-    Mock_Amazon.on('connect', () => {
-        jspb.load(A_PROTO, (err, root) => {
-            if (err) {
-                throw Error(err);
-            }
-            let AConnect = root.lookupType('AConnect');
-            let AInitWarehouse = root.lookupType("AInitWarehouse");
-            let AInitWarehousePayload = {'id': 0, 'x': 10, 'y': 1 };
-            let errMsg = AInitWarehouse.verify(AInitWarehousePayload);
-            if (errMsg) {
-                throw Error(errMsg);
-            }
-            let AConnectPayload = {'worldid': WORLD_ID, 'initwh': [AInitWarehousePayload], 'isAmazon': true};
-            errMsg = AConnect.verify(AConnectPayload);
-            if (errMsg) {
-                throw Error(errMsg);
-            }
-            let message = AConnect.create(AConnectPayload);
-            let buffer = AConnect.encodeDelimited(message).finish();
-            Mock_Amazon.write(buffer);
-        });
-    });
-    Mock_Amazon.connect({host: WORLD_URL, port: 23456});
-    res.send();
-});
-
-app.post('/upsEndpoint', async function (req, res) {
-    //let request = JSON.parse(req.body);
-    console.log(req.body);
-    res.send();
-});
