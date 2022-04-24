@@ -1,8 +1,12 @@
 import mongoose from 'mongoose';
 import { AccountSchema, OrderSchema } from '../models/model';
+import {sendRequestToWorld} from '../../app';
+import { ToadScheduler, SimpleIntervalJob, AsyncTask, Task } from 'toad-scheduler';
 
 const Account = mongoose.model('Account', AccountSchema);
 const Order = mongoose.model('Order', OrderSchema);
+
+const scheduler = new ToadScheduler();
 
 export const signupUser = (req, res) => {
     Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
@@ -145,6 +149,29 @@ export async function editOrderAddress(trackingNumber, newAddress) {
     } catch (err) {
         throw err;
     }
+}
+
+export async function sendPackageToWorld(command){
+    // Deal with ACK
+    /*
+    const task = new AsyncTask(
+        'SimpleWorldReqeust', 
+        () => { return sendRequestToWorld(command)},
+        (err: Error) => { console.log("SimpleWorldRequest send failed") }
+    )
+    */
+    const task = new Task(
+        'simple task', 
+        () => { sendRequestToWorld(command)}
+    );
+    const job = new SimpleIntervalJob({ seconds: 10, runImmediately: true }, task, String(command.seqnum));
+    scheduler.addSimpleIntervalJob(job);
+}
+
+export async function receiveAckFromWorld(seqNum){
+    //scheduler.stopById(seqNum);
+    scheduler.stopById(seqNum);
+    console.log(scheduler.getById(seqNum).getStatus());
 }
 
 export async function getOrderStatus(trackingNumber) {
