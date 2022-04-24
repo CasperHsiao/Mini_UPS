@@ -141,6 +141,9 @@ app.post('/amazonEndpoint', async function (req, res) {
             if (truckid === undefined) {
                 throw Error ("Failed to located truck with the tracking number provided");
             }
+            if (truckid === null) {
+                throw Error ("This package is in delivery or delivered");
+            }
             let seqnum = await getSequenceNumber();
             let x = order.DeliverAddress_X;
             let y = order.DeliverAddress_Y;
@@ -285,6 +288,7 @@ function handleDeliveredPackage(delivered) {
     sendAckToWorld(seqnum);
     if (RECV_SEQ_MAP[seqnum] === undefined) {
         RECV_SEQ_MAP[seqnum] = true;
+        PACKAGE_TRUCK_MAP[trackingNumber] = null;
         getOrderAndUpdateStatus(trackingNumber, 'delivered');
         let data = JSON.stringify({"packageDelivered": {"trackingNumber": trackingNumber}});
         sendRequestToAmazon(data);
@@ -306,7 +310,8 @@ function handleFinishedTruck(finished) {
                 pickup['truckid'] = truckid;
                 PACKAGE_TRUCK_MAP[pickup.packageid] = truckid;
                 TRUCK_PACKAGE_MAP[truckid] = pickup.packageid;
-                sendRequestToWorld(pickup);
+                sendPackageToWorld(pickup);
+                //sendRequestToWorld(pickup);
             }
         } else if (status === 'ARRIVE WAREHOUSE') {
             let data = JSON.stringify({"truckArrived": {"trackingNumber": TRUCK_PACKAGE_MAP[truckid], "truckid": truckid}});
