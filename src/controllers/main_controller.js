@@ -1,8 +1,13 @@
 import mongoose from 'mongoose';
 import { AccountSchema, OrderSchema } from '../models/model';
+import { ToadScheduler, SimpleIntervalJob, AsyncTask } from 'toad-scheduler';
+import {sendRequestToWorld} from '../../app';
 
 const Account = mongoose.model('Account', AccountSchema);
 const Order = mongoose.model('Order', OrderSchema);
+
+// Deal with ACK
+const scheduler = new ToadScheduler();
 
 export const signupUser = (req, res) => {
     Account.findOne({"UserName" : req.body.UserName}, (err, account) => {
@@ -97,7 +102,23 @@ export const editAddress = (req, res, next) => {
     }
 }
 
-export async function addNewOrder(reqOrderJson, trackingNumber) {
+export async function sendPackageToWorld(command){
+    // Deal with ACK
+    const task = new AsyncTask(
+        'SimpleWorldReqeust', 
+        sendRequestToWorld(command),
+        (err) => { console.log("SimpleWorldRequest send failed") }
+    )
+
+    const job = new SimpleIntervalJob({ seconds: 2, }, task);
+    scheduler.addSimpleIntervalJob(job);
+}
+
+export async function addNewOrder(reqOrder, trackingNumber) {
+    // console.log(reqOrder);
+
+    const reqOrderJson = JSON.parse(reqOrder);
+
     const regex = new RegExp('[0-9]+,[0-9]+');
     let result = regex.test(reqOrderJson.startDelivery.address);
 
