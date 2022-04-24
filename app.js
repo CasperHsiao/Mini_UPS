@@ -21,7 +21,7 @@ const WORLD_URL = 'localhost';
 const WORLD_PORT_NUM = 12345;
 const UPS_PROTO = 'world_ups.proto';
 const WORLD_SIM_SERVER = connectToWorldSimServer();
-const NUM_TRUCKS = 10;
+const NUM_TRUCKS = 2;
 var WORLD_ID = null;
 const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
@@ -431,39 +431,3 @@ function disconnectFromWorld() {
     });
 }
 */
-
-/*
-function receiveRequestFromWorld() {
-    return new Promise((resolve, reject) => {
-        WORLD_SIM_SERVER.on('data', function onData(data) {
-            WORLD_SIM_SERVER.off('data', onData);
-            promiseHandleWorldResponses(data, resolve)
-        });
-    });
-}
-
-function promiseHandleWorldResponses(data, resolve) {
-    console.log("Data received from world simulator server");
-    jspb.load(UPS_PROTO, (err, root) => {
-        if (err) {
-            throw err;
-        }
-        try {
-            let UConnected = root.lookupType('UConnected');
-            let message = UConnected.decodeDelimited(data);
-            if (message.result == 'connected!') {
-                WORLD_ID = Number(message.worldid);
-                console.log("Connected to world " + WORLD_ID);
-            }
-            console.log(message);
-            resolve(message);
-        } catch (err){
-            let UResponses = root.lookupType('UResponses');
-            let message = UResponses.decodeDelimited(data);
-            console.log(message);
-            resolve(message);
-        }
-    });
-}
-*/
-
