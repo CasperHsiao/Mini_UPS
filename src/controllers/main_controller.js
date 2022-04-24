@@ -114,10 +114,7 @@ export async function sendPackageToWorld(command){
     scheduler.addSimpleIntervalJob(job);
 }
 
-export async function addNewOrder(reqOrder, trackingNumber) {
-    // console.log(reqOrder);
-
-    const reqOrderJson = JSON.parse(reqOrder);
+export async function addNewOrder(reqOrderJson, trackingNumber) {
 
     const regex = new RegExp('[0-9]+,[0-9]+');
     let result = regex.test(reqOrderJson.startDelivery.address);

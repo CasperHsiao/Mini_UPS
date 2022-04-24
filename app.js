@@ -96,8 +96,7 @@ app.post('/amazonEndpoint', async function (req, res) {
         try {
             trackingNumber = await getTrackingNumber();
             await addNewOrder(request, trackingNumber);
-            let sequenceNumber = await getSequenceNumber();
-            let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber, 'seqnum': sequenceNumber};
+            let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber};
             let idleTruck = IDLE_TRUCKS.shift();
             if (idleTruck === undefined) {
                 PICKUP_QUEUE.push(pickup);
@@ -105,8 +104,8 @@ app.post('/amazonEndpoint', async function (req, res) {
                 pickup['truckid'] = idleTruck;
                 PACKAGE_TRUCK_MAP[pickup.packageid] = idleTruck;
                 TRUCK_PACKAGE_MAP[idleTruck] = pickup.packageid;
-                //sendRequestToWorld(pickup);
-                sendPackageToWorld(command);
+                sendRequestToWorld(pickup);
+                //sendPackageToWorld(command);
             }
             res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
         } catch (err) {
@@ -141,10 +140,9 @@ app.post('/amazonEndpoint', async function (req, res) {
             if (truckid === undefined) {
                 throw Error ("Failed to located truck with the tracking number provided");
             }
-            let seqnum = await getSequenceNumber();
             let x = order.DeliverAddress_X;
             let y = order.DeliverAddress_Y;
-            let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
+            let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'x': x, 'y': y, 'truckid': truckid};
             sendRequestToWorld(delivery);
             res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": String(trackingNumber)}}));   
         } catch (err) {
@@ -165,6 +163,7 @@ async function generatePickupPayload(command, root) {
     if (errMsg) {
         throw Error(errMsg);
     }
+    console.log(command); 
     return pickupPayload;
 }
 
