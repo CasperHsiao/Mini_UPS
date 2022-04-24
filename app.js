@@ -21,7 +21,7 @@ const WORLD_URL = 'localhost';
 const WORLD_PORT_NUM = 12345;
 const UPS_PROTO = 'world_ups.proto';
 const WORLD_SIM_SERVER = connectToWorldSimServer();
-const NUM_TRUCKS = 1;
+const NUM_TRUCKS = 10;
 var WORLD_ID = null;
 const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
@@ -30,7 +30,7 @@ const TRUCK_PACKAGE_MAP = {};
 const TRACK_SHIPID_MAP = {};
 const SHIPID_TRACK_MAP = {};
 const RECV_SEQ_MAP = {};
-var Tracking_Number = 0;
+var Tracking_Number = 1;
 var Sequence_Number = 0;
 
 var Amazon_Endpoint = {
