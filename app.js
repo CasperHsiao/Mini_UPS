@@ -3,7 +3,7 @@ import routes from './src/routes/main_route';
 import mongoose from 'mongoose';
 import jspb from 'protobufjs';
 import net from 'net';
-import { addNewOrder, editOrderAddress, editPackageAddress, getOrder, getOrderAndUpdateStatus, getOrderStatus, getPackageStatus } from './src/controllers/main_controller';
+import { addNewOrder, editOrderAddress, editPackageAddress, getOrder, getOrderAndUpdateStatus, getOrderStatus, getPackageStatus, sendPackageToWorld, receiveAckFromWorld } from './src/controllers/main_controller';
 import { request } from 'http';
 import { Mutex } from 'async-mutex'
 
@@ -105,7 +105,8 @@ app.post('/amazonEndpoint', async function (req, res) {
                 pickup['truckid'] = idleTruck;
                 PACKAGE_TRUCK_MAP[pickup.packageid] = idleTruck;
                 TRUCK_PACKAGE_MAP[idleTruck] = pickup.packageid;
-                sendRequestToWorld(pickup);
+                sendPackageToWorld(pickup);
+                //sendRequestToWorld(pickup);
             }
             res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
         } catch (err) {
@@ -144,7 +145,8 @@ app.post('/amazonEndpoint', async function (req, res) {
             let x = order.DeliverAddress_X;
             let y = order.DeliverAddress_Y;
             let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
-            sendRequestToWorld(delivery);
+            sendPackageToWorld(delivery);
+            //sendRequestToWorld(delivery);
             res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": String(trackingNumber)}}));   
         } catch (err) {
             res.status(REQUEST_ERROR)
@@ -182,7 +184,7 @@ function generateDeliverPayload(command, root) {
     return deliverPayload;
 }
 
-function sendRequestToWorld(command) {
+export function sendRequestToWorld(command) {
     jspb.load(UPS_PROTO, (err, root) => {
         if (err) {
             throw Error(err);
@@ -255,6 +257,7 @@ function handleUResponses(response) {
     let acks = response.acks;
     for (let i = 0; i < acks.length; i++) {
         // for each ack stop sending the corresonping seqnum Ucommands
+        receiveAckFromWorld(String(acks[i]));
     }
     for (let i = 0; i < completions.length; i++) {
         handleFinishedTruck(completions[i]);
@@ -272,7 +275,7 @@ function handleWorldError(error) {
     let seqnum = error.seqnum;
     sendAckToWorld(seqnum);
     if (RECV_SEQ_MAP[seqnum] === undefined) {
-        console.log(errMsg);
+        //console.log(errMsg);
     }
 }
 
