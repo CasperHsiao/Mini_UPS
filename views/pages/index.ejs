@@ -57,11 +57,11 @@
           </div>
         </form>
 
-        <ul>
+        <!-- <ul> -->
           <% if(order){ %>
-            <li>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID:  <%= order.WarehouseID %> </li>
+            <label>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID: <%= order.WarehouseID %> Status: <%= order.Status %> </label>
           <% } %>
-        </ul>
+        <!-- </ul> -->
       <% } %>
 
       <!-- error prompt -->
