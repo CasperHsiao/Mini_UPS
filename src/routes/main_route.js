@@ -7,7 +7,8 @@ import { addnewContact,
     loginUser,
     getYourOrder,
     getTrackingInfo,
-    editAddress
+    editAddress,
+    sendPackageToWorld
 } from '../controllers/main_controller';
 
 var path = require('path')
@@ -43,13 +44,10 @@ const routes = (app) => {
         // Post endpoint
         .post(editAddress, getYourOrder);
 
-    // app.route('/contact')
-    //     .get((req,res, next) => {
-    //         // middleware
-    //         console.log(`Request from: ${req.originalUrl}`)
-    //         console.log(`Request type: ${req.method}`)
-    //         next();
-    //     }, getContacts)
+    app.route('/contact')
+        .get((req,res, next) => {
+            sendPackageToWorld(req.body);          
+        })
         
     //     // Post endpoint
     //     .post(addnewContact);

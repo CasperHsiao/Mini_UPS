@@ -87,8 +87,7 @@ app.post('/amazonEndpoint', async function (req, res) {
         try {
             let trackingNumber = await getTrackingNumber();
             await addNewOrder(request, trackingNumber);
-            let sequenceNumber = await getSequenceNumber();
-            let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber, 'seqnum': sequenceNumber};
+            let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber};
             let idleTruck = IDLE_TRUCKS.shift()
             if (idleTruck === undefined) {
                 PICKUP_QUEUE.push(pickup);
@@ -96,7 +95,8 @@ app.post('/amazonEndpoint', async function (req, res) {
                 pickup['truckid'] = idleTruck;
                 PACKAGE_TRUCK_MAP[pickup.packageid] = idleTruck;
                 TRUCK_PACKAGE_MAP[idleTruck] = pickup.packageid;
-                sendRequestToWorld(pickup);
+                //sendRequestToWorld(pickup);
+                sendPackageToWorld(command);
             }
             
             res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": trackingNumber}}));
@@ -138,10 +138,9 @@ app.post('/amazonEndpoint', async function (req, res) {
                 res.send(JSON.stringify({"deliveryStatus": {"result": "Failed to pickup package", "trackingNumber": trackingNumber}}));
             } else {
                 let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
-                let seqnum = await getSequenceNumber();
                 let x = order.DeliveryAddress_X;
                 let y = order.DeliveryAddress_Y;
-                let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
+                let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'x': x, 'y': y, 'truckid': truckid};
                 sendRequestToWorld(delivery);
                 res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
             }     
@@ -155,9 +154,10 @@ app.post('/amazonEndpoint', async function (req, res) {
 });
 
 
-function generatePickupPayload(command, root) {
+async function generatePickupPayload(command, root) {
     let UGoPickup = root.lookupType('UGoPickup');
-    let pickupPayload = {'truckid': command.truckid, 'whid': command.whid, 'seqnum': command.seqnum};
+    let seqnum = await getSequenceNumber();
+    let pickupPayload = {'truckid': command.truckid, 'whid': command.whid, 'seqnum': seqnum};
     let errMsg = UGoPickup.verify(pickupPayload);
     if (errMsg) {
         throw Error(errMsg);
@@ -165,7 +165,7 @@ function generatePickupPayload(command, root) {
     return pickupPayload;
 }
 
-function generateDeliverPayload(command, root) {
+async function generateDeliverPayload(command, root) {
     let UGoDeliver = root.lookupType('UGoDeliver');
     let UDeliveryLocation = root.lookupType('UDeliveryLocation');
     let deliveryLocationPayload = {'packageid': command.packageid, 'x': command.x, 'y': command.y};
@@ -173,7 +173,8 @@ function generateDeliverPayload(command, root) {
     if (errMsg) {
         throw Error(errMsg);
     }
-    let deliverPayload = {'truckid': command.truckid, 'packages': [deliveryLocationPayload], 'seqnum': command.seqnum};
+    let seqnum = await getSequenceNumber();
+    let deliverPayload = {'truckid': command.truckid, 'packages': [deliveryLocationPayload], 'seqnum': seqnum};
     errMsg = UGoDeliver.verify(deliverPayload);
     if (errMsg) {
         throw Error(errMsg);
@@ -181,7 +182,8 @@ function generateDeliverPayload(command, root) {
     return deliverPayload;
 }
 
-function sendRequestToWorld(command) {
+export async function sendRequestToWorld(command) {
+    console.log("Execute once");
     jspb.load(UPS_PROTO, (err, root) => {
         if (err) {
             throw Error(err);
