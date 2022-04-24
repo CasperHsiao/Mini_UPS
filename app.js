@@ -136,15 +136,16 @@ app.post('/amazonEndpoint', async function (req, res) {
         let trackingNumber = request.truckLoaded.trackingNumber;
         try {
             let order = await getOrderAndUpdateStatus(trackingNumber, 'delivering');
-            let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
-            if (truckid === undefined) {
-                throw Error ("Failed to located truck with the tracking number provided");
-            }
-            let x = order.DeliverAddress_X;
-            let y = order.DeliverAddress_Y;
-            let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'x': x, 'y': y, 'truckid': truckid};
-            sendRequestToWorld(delivery);
-            res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": String(trackingNumber)}}));   
+            if (order === null) {
+                res.send(JSON.stringify({"deliveryStatus": {"result": "Failed to pickup package", "trackingNumber": trackingNumber}}));
+            } else {
+                let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
+                let x = order.DeliveryAddress_X;
+                let y = order.DeliveryAddress_Y;
+                let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'x': x, 'y': y, 'truckid': truckid};
+                sendRequestToWorld(delivery);
+                res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": trackingNumber}}));
+            }     
         } catch (err) {
             res.status(REQUEST_ERROR)
             res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
