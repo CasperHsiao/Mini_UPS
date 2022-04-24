@@ -27,12 +27,14 @@ const PICKUP_QUEUE = [];
 const IDLE_TRUCKS = [];
 const PACKAGE_TRUCK_MAP = {};
 const TRUCK_PACKAGE_MAP = {};
+const TRACK_SHIPID_MAP = {};
+const SHIPID_TRACK_MAP = {};
 const RECV_SEQ_MAP = {};
 var Tracking_Number = 0;
 var Sequence_Number = 0;
 
 var Amazon_Endpoint = {
-    host: 'vcm-24767.vm.duke.edu',
+    host: 'vcm-24938.vm.duke.edu',
     port: 8080,
     path: '/upsEndpoint',
     method: 'POST',
@@ -91,12 +93,15 @@ app.get('/worldid', async function (req, res) {
 });
 app.post('/amazonEndpoint', async function (req, res) {
     let request = JSON.parse(req.body);
+    console.log(request);
     if (request.startDelivery !== undefined ) {
         let trackingNumber;
         try {
             trackingNumber = await getTrackingNumber();
             await addNewOrder(request, trackingNumber);
             let sequenceNumber = await getSequenceNumber();
+            TRACK_SHIPID_MAP[trackingNumber] = Number(request.startDelivery.shipId);
+            SHIPID_TRACK_MAP[Number(request.startDelivery.shipId)] = trackingNumber;
             let pickup = {'type': 'pickup', 'whid': Number(request.startDelivery.warehouseID), 'packageid': trackingNumber, 'seqnum': sequenceNumber};
             let idleTruck = IDLE_TRUCKS.shift();
             if (idleTruck === undefined) {
@@ -108,30 +113,30 @@ app.post('/amazonEndpoint', async function (req, res) {
                 sendPackageToWorld(pickup);
                 //sendRequestToWorld(pickup);
             }
-            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
+            res.send(JSON.stringify({"startDelivery": {"result": "ok", "trackingNumber": trackingNumber}}));
         } catch (err) {
             res.status(REQUEST_ERROR);
-            res.send(JSON.stringify({"startDelivery": {"result": err.message, "trackingNumber": String(trackingNumber)}}));
-            decrTrackingNumber();
+            res.send(JSON.stringify({"startDelivery": {"result": err.message, "trackingNumber": trackingNumber}}));
+            //decrTrackingNumber();
         }
     } else if (request.deliveryStatus !== undefined) {
         let trackingNumber = request.deliveryStatus.trackingNumber;
         try {
             let result = await getOrderStatus(trackingNumber);
-            res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": String(trackingNumber)}}));
+            res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": trackingNumber}}));
         } catch (err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
+            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": trackingNumber}}));
         }
     } else if (request.editAddress !== undefined) {
         let trackingNumber = request.editAddress.trackingNumber;
         let newAddress = request.editAddress.address;
         try {
             await editOrderAddress(trackingNumber, newAddress); // await check database
-            res.send(JSON.stringify({"editAddress": {"result": "ok", "trackingNumber": String(trackingNumber)}}));
+            res.send(JSON.stringify({"editAddress": {"result": "ok", "trackingNumber": trackingNumber}}));
         } catch (err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
+            res.send(JSON.stringify({"editAddress": {"status": err.message, "trackingNumber": trackingNumber}}));
         }
     } else if (request.truckLoaded !== undefined) {
         let trackingNumber = request.truckLoaded.trackingNumber;
@@ -145,15 +150,16 @@ app.post('/amazonEndpoint', async function (req, res) {
                 throw Error ("This package is in delivery or delivered");
             }
             let seqnum = await getSequenceNumber();
+            let packageid = TRACK_SHIPID_MAP[order.TrackNum];
             let x = order.DeliverAddress_X;
             let y = order.DeliverAddress_Y;
-            let delivery = {'type': 'delivery', 'packageid': order.TrackNum, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
+            let delivery = {'type': 'delivery', 'packageid': packageid, 'seqnum': seqnum, 'x': x, 'y': y, 'truckid': truckid};
             sendPackageToWorld(delivery);
             //sendRequestToWorld(delivery);
-            res.send(JSON.stringify({"deliveryStatus": {"result": "ok", "trackingNumber": String(trackingNumber)}}));   
+            res.send(JSON.stringify({"truckLoaded": {"result": "ok", "trackingNumber": trackingNumber}}));   
         } catch (err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": String(trackingNumber)}}));
+            res.send(JSON.stringify({"truckLoaded": {"status": err.message, "trackingNumber": trackingNumber}}));
         }
     } else {
         res.status(REQUEST_ERROR).send("Invalid request: missing or invalid request type");
@@ -283,7 +289,7 @@ function handleWorldError(error) {
 }
 
 function handleDeliveredPackage(delivered) {    
-    let trackingNumber = delivered.packageid;
+    let trackingNumber = SHIPID_TRACK_MAP[delivered.packageid];
     let seqnum = delivered.seqnum;
     sendAckToWorld(seqnum);
     if (RECV_SEQ_MAP[seqnum] === undefined) {
@@ -332,11 +338,15 @@ function sendRequestToAmazon(data) {
             console.log("body: " + chunk);
         });
     });
+    req.on('response', function(response) {
+        console.log(response.statusCode) // <--- Here 200
+    })
     req.on('error', error => {
         console.error(error)
       });
     req.write(data);
     req.end();
+    console.log(data);
 }
 
 
