@@ -26,6 +26,7 @@
               <li><a href="#">Contact</a></li> -->
             </ul>
             <ul class="nav navbar-nav navbar-right">
+              <li class="active"><a href="/reset">Reset Password</a></li>
               <li><a id="logoutputprompt" href="/"><span class="glyphicon glyphicon-log-in"></span> Logout</a></li>
             </ul>
           </div>
@@ -38,7 +39,20 @@
       <button id="all">Shop All</button>
       <button id="cart">Cart</button>
     </div> --> 
+    <!-- error prompt -->
+    <% if(error == true){ %>
+      <label class="errorMsg"> <%= msg %> </label>
+    <% } %> 
 
+    <% if(reset){ %>
+      <form method="post">
+        <div class="input-group">
+          <input type="password" name="OldPassword" placeholder="Old Password" id="password" required>
+          <input type="password" name="NewPassword" placeholder="New Password" id="password" required>
+          <input type="submit" name="resetBtn" value="Reset" id="reset-btn">
+        </div>
+      </form>
+    <% } else { %>
         <% orders.forEach(function(order){ %>
           <form method="post">
             <div class="input-group">
@@ -53,6 +67,7 @@
             </div>
           </form>
         <% }); %>
+    <% } %>
     </body>
    
 

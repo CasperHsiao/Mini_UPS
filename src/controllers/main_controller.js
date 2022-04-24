@@ -36,10 +36,13 @@ export const loginUser = (req, res, next) => {
         if (err) {
             res.send(err);
         }
+        
+        req.app.set('Error', false);
+        
         if (account) {
             if(account.Password == req.body.Password){
                 //next();
-                req.app.set('UseName', req.body.UserName);
+                req.app.set('UserName', req.body.UserName);
                 res.redirect('/personal-page/');
             }
             else{ // Incorrect password
@@ -54,11 +57,11 @@ export const loginUser = (req, res, next) => {
 
 export const getYourOrder = (req, res) => {
     // Order.find({"UserName" : req.body.UserName}, (err, userOrders) => {
-    Order.find({"UserName" : req.app.get('UseName')}, (err, userOrders) => {
+    Order.find({"UserName" : req.app.get('UserName')}, (err, userOrders) => {
         if (err) {
             res.send(err);
         }
-        res.render("./pages/personal", {orders:userOrders });
+        res.render("./pages/personal", {orders:userOrders, reset:false, error:req.app.get('Error'), msg:"Incorrect address format"});
     });
 }
 
@@ -79,10 +82,11 @@ export const getTrackingInfo = (req, res) => {
 }
 
 export const editAddress = (req, res, next) => {
-    const regex = new RegExp('[0-9]+,[0-9]+');
+    const regex = new RegExp('^[0-9]+,[0-9]+$');
     let result = regex.test(req.body.DeliverAddress);
 
-    req.app.set('UseName', req.body.UserName);
+    req.app.set('UserName', req.body.UserName);
+    req.app.set('Error', !result);
 
     if(!result){
         next();
@@ -101,8 +105,28 @@ export const editAddress = (req, res, next) => {
     }
 }
 
+export const verifyAndResetPassword = (req, res, next) => {
+    let doc = Account.findOneAndUpdate({"UserName" : req.app.get('UserName'), "Password": req.body.OldPassword},
+                                {"Password": req.body.NewPassword},
+                                (err, TrackingOrder) => {
+        if (err) {
+            res.render("./pages/personal", {reset:true, error: true, msg: err});
+            return;
+        }
+
+        if(TrackingOrder){
+            req.app.set('Error', false);
+            res.redirect('/personal-page/');
+        }
+        else{
+            req.app.set('Error', true);
+            res.render("./pages/personal", {reset:true, error: true, msg: "Fail to update password"});
+        }
+    });
+}
+
 export async function addNewOrder(reqOrderJson, trackingNumber) {
-    const regex = new RegExp('[0-9]+,[0-9]+');
+    const regex = new RegExp('^[0-9]+,[0-9]+$');
     let result = regex.test(reqOrderJson.startDelivery.address);
 
     if(!result){
@@ -130,7 +154,7 @@ export async function addNewOrder(reqOrderJson, trackingNumber) {
 
 export async function editOrderAddress(trackingNumber, newAddress) {
     try {
-        const regex = new RegExp('[0-9]+,[0-9]+');
+        const regex = new RegExp('^[0-9]+,[0-9]+$');
         let result = regex.test(newAddress);
 
         if(!result){
