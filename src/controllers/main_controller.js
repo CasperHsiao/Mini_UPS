@@ -136,9 +136,10 @@ export async function editOrderAddress(trackingNumber, newAddress) {
         if(!result){
             throw new Error("Invalid delivery address format");
         }
+        let processed_address = newAddress.split(',', 2);
         
         result = await Order.findOneAndUpdate({"TrackNum" : trackingNumber}, 
-                                                    {"DeliverAddress" : newAddress});
+                                                    {"DeliverAddress_X" : processed_address[0], "DeliverAddress_Y" : processed_address[1]});
         if(!result){
             throw new Error("Invalid tracking number");
         }

@@ -143,6 +143,15 @@ app.post('/amazonEndpoint', async function (req, res) {
         let trackingNumber = request.truckLoaded.trackingNumber;
         try {
             await getOrderAndUpdateStatus(trackingNumber, 'canceled');
+            let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
+            if (truckid === undefined) {
+                throw Error ("Failed to located truck with the tracking number provided");
+            }
+            if (truckid === null) {
+                throw Error ("This package is in delivery, delivered, or canceled");
+            }
+            PACKAGE_TRUCK_MAP[trackingNumber] == null;
+            IDLE_TRUCKS.push(truckid);
             res.send(JSON.stringify({"truckLoaded": {"result": "ok", "trackingNumber": trackingNumber.toString()}}));
         } catch(err) {
             res.status(REQUEST_ERROR)
@@ -157,7 +166,7 @@ app.post('/amazonEndpoint', async function (req, res) {
                 throw Error ("Failed to located truck with the tracking number provided");
             }
             if (truckid === null) {
-                throw Error ("This package is in delivery or delivered");
+                throw Error ("This package is in delivery, delivered, or canceled");
             }
             let seqnum = await getSequenceNumber();
             let packageid = TRACK_SHIPID_MAP[order.TrackNum];
