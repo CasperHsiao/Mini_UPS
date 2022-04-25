@@ -33,10 +33,11 @@ const RECV_SEQ_MAP = {};
 var Tracking_Number = 1;
 var Sequence_Number = 0;
 
-//vcm-24938.vm.duke.edu:8080
+const KUNAL = 'vcm-24938.vm.duke.edu';
+const MARCUS = 'vcm-24018.vm.duke.edu';
 var Amazon_Endpoint = {
-    host: 'vcm-24018.vm.duke.edu',
-    port: 8000,
+    host: KUNAL,
+    port: 8080,
     path: '/upsEndpoint',
     method: 'POST',
 };
@@ -127,7 +128,7 @@ app.post('/amazonEndpoint', async function (req, res) {
             res.send(JSON.stringify({"deliveryStatus": {"status": result.Status, "trackingNumber": trackingNumber.toString()}}));
         } catch (err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"deliveryStatus": {"status": err.message, "trackingNumber": trackingNumber.toString()}}));
+            res.send(JSON.stringify({"deliveryStatus": {"result": err.message, "trackingNumber": trackingNumber.toString()}}));
         }
     } else if (request.editAddress !== undefined) {
         let trackingNumber = request.editAddress.trackingNumber;
@@ -137,10 +138,10 @@ app.post('/amazonEndpoint', async function (req, res) {
             res.send(JSON.stringify({"editAddress": {"result": "ok", "trackingNumber": trackingNumber.toString()}}));
         } catch (err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"editAddress": {"status": err.message, "trackingNumber": trackingNumber.toString()}}));
+            res.send(JSON.stringify({"editAddress": {"result": err.message, "trackingNumber": trackingNumber.toString()}}));
         }
     } else if (request.cancelAddress !== undefined) {
-        let trackingNumber = request.truckLoaded.trackingNumber;
+        let trackingNumber = request.cancelAddress.trackingNumber;
         try {
             await getOrderAndUpdateStatus(trackingNumber, 'canceled');
             let truckid = PACKAGE_TRUCK_MAP[trackingNumber];
@@ -152,10 +153,10 @@ app.post('/amazonEndpoint', async function (req, res) {
             }
             PACKAGE_TRUCK_MAP[trackingNumber] == null;
             IDLE_TRUCKS.push(truckid);
-            res.send(JSON.stringify({"truckLoaded": {"result": "ok", "trackingNumber": trackingNumber.toString()}}));
+            res.send(JSON.stringify({"cancelAddress": {"result": "ok", "trackingNumber": trackingNumber.toString()}}));
         } catch(err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"truckLoaded": {"status": err.message, "trackingNumber": trackingNumber.toString()}}));
+            res.send(JSON.stringify({"cancelAddress": {"result": err.message, "trackingNumber": trackingNumber.toString()}}));
         }
     } else if (request.truckLoaded !== undefined) {
         let trackingNumber = request.truckLoaded.trackingNumber;
@@ -178,7 +179,7 @@ app.post('/amazonEndpoint', async function (req, res) {
             res.send(JSON.stringify({"truckLoaded": {"result": "ok", "trackingNumber": trackingNumber.toString()}}));   
         } catch (err) {
             res.status(REQUEST_ERROR)
-            res.send(JSON.stringify({"truckLoaded": {"status": err.message, "trackingNumber": trackingNumber.toString()}}));
+            res.send(JSON.stringify({"truckLoaded": {"result": err.message, "trackingNumber": trackingNumber.toString()}}));
         }
     } else {
         res.status(REQUEST_ERROR).send("Invalid request: missing or invalid request type");
