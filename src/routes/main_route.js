@@ -51,7 +51,7 @@ const routes = (app) => {
         .post(verifyAndResetPassword);
     
     app.route('/authenticate')
-        .get(getGoogleInfo, getYourOrder)
+        .get(getGoogleInfo)
         
         // Post endpoint
         // .post(editAddress, getYourOrder);

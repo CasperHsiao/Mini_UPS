@@ -254,7 +254,7 @@ async function getAccessTokenFromCode(code) {
         code,
       },
     });
-    console.log(data); // { access_token, expires_in, token_type, refresh_token }
+    // console.log(data); // { access_token, expires_in, token_type, refresh_token }
     return data.access_token;
 };
 
@@ -266,7 +266,7 @@ async function getGoogleUserInfo(access_token) {
         Authorization: `Bearer ${access_token}`,
       },
     });
-    console.log(data); // { id, email, given_name, family_name }
+    //console.log(data); // { id, email, given_name, family_name }
     return data;
   };
 
@@ -282,23 +282,12 @@ async function getGoogleUserInfo(access_token) {
                 res.send(err);
             }
         });
+
+        req.app.set('UserName', user_data.email);
     } catch (err) {
         console.log(err);
     }
-    next();
-    // Order.findOne({"TrackNum" : req.body.TrackNum}, (err, TrackingOrder) => {
-    //     if (err) {
-    //         // res.send(err);
-    //         res.render("./pages/index", {login: false , error: true, order:"", msg: err});
-    //         return;
-    //     }
-    //     if (TrackingOrder) {
-    //         res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
-    //     }
-    //     else{
-    //         res.render("./pages/index", {login: false , error: true, order:"", msg: "Tracking number doesn't exists!"});
-    //     }
-    // });
+    res.redirect('/personal-page/');
 }
 
 // export const addnewContact = (req, res) => {
