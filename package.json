@@ -19,10 +19,12 @@
     "body-parser": "^1.20.0",
     "ejs": "^3.1.6",
     "express": "^4.17.3",
+    "googleapis": "^100.0.0",
     "mongodb": "^4.5.0",
     "mongoose": "^6.3.0",
     "nodemon": "^2.0.15",
     "protobufjs": "^6.11.2",
+    "query-string": "^7.1.1",
     "toad-scheduler": "^1.6.0"
   },
   "devDependencies": {

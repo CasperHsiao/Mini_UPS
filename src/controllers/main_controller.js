@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import { AccountSchema, OrderSchema } from '../models/model';
 import {sendRequestToWorld} from '../../app';
 import { ToadScheduler, SimpleIntervalJob, AsyncTask, Task } from 'toad-scheduler';
+import * as queryString from 'query-string';
+import axios from 'axios';
 
 const Account = mongoose.model('Account', AccountSchema);
 const Order = mongoose.model('Order', OrderSchema);
@@ -15,7 +17,7 @@ export const signupUser = (req, res) => {
         }
 
         if (account) {
-            res.render("./pages/index", {login: true , error: true, msg: "Username already exists!"});
+            res.render("./pages/index", {login: true, googleLink: googleLoginUrl, error: true, msg: "Username already exists!"});
         }
         else{
             delete req.body['submitBtn']
@@ -38,19 +40,18 @@ export const loginUser = (req, res, next) => {
         }
         
         req.app.set('Error', false);
-        
+
         if (account) {
             if(account.Password == req.body.Password){
-                //next();
                 req.app.set('UserName', req.body.UserName);
                 res.redirect('/personal-page/');
             }
             else{ // Incorrect password
-                res.render("./pages/index", {login: true , error: true, msg: "Incorrect password!"});
+                res.render("./pages/index", {login: true, googleLink: googleLoginUrl, error: true, msg: "Incorrect password!"});
             }
         }
         else{ // UserName doesn't exist
-            res.render("./pages/index", {login: true , error: true, msg: "Username doesn't exists!"});
+            res.render("./pages/index", {login: true, googleLink: googleLoginUrl, error: true, msg: "Username doesn't exists!"});
         }
     });
 }
@@ -225,6 +226,80 @@ export async function getOrderAndUpdateStatus(trackingNumber, status) {
 }
 
 
+// Google login Oauth
+const stringifiedParams = queryString.stringify({
+    // client_id: process.env.CLIENT_ID_GOES_HERE,
+    client_id: "116899395970-lgs9nmecgd8akqbheuich18ebhmd30jv.apps.googleusercontent.com",
+    redirect_uri: 'http://vcm-24914.vm.duke.edu:8000/authenticate',
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+    ].join(' '), // space seperated string
+    response_type: 'code',
+    access_type: 'offline',
+    prompt: 'consent',
+});
+  
+export const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
+  
+async function getAccessTokenFromCode(code) {
+    const { data } = await axios({
+      url: `https://oauth2.googleapis.com/token`,
+      method: 'post',
+      data: {
+        client_id: "116899395970-lgs9nmecgd8akqbheuich18ebhmd30jv.apps.googleusercontent.com",
+        client_secret: "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",
+        redirect_uri: 'http://vcm-24914.vm.duke.edu:8000/authenticate',
+        grant_type: 'authorization_code',
+        code,
+      },
+    });
+    console.log(data); // { access_token, expires_in, token_type, refresh_token }
+    return data.access_token;
+};
+
+async function getGoogleUserInfo(access_token) {
+    const { data } = await axios({
+      url: 'https://www.googleapis.com/oauth2/v2/userinfo',
+      method: 'get',
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+    console.log(data); // { id, email, given_name, family_name }
+    return data;
+  };
+
+  export const getGoogleInfo = async (req, res, next) => {
+    try{
+        const google_token = await getAccessTokenFromCode(req.query.code);
+        var user_data = await getGoogleUserInfo(google_token);
+
+        let newAccount = new Account({'UserName': user_data.email,
+                                    'Password': "/"});
+        newAccount.save((err, contact) => {
+            if (err) {
+                res.send(err);
+            }
+        });
+    } catch (err) {
+        console.log(err);
+    }
+    next();
+    // Order.findOne({"TrackNum" : req.body.TrackNum}, (err, TrackingOrder) => {
+    //     if (err) {
+    //         // res.send(err);
+    //         res.render("./pages/index", {login: false , error: true, order:"", msg: err});
+    //         return;
+    //     }
+    //     if (TrackingOrder) {
+    //         res.render("./pages/index", {login: false , error: false, order: TrackingOrder});
+    //     }
+    //     else{
+    //         res.render("./pages/index", {login: false , error: true, order:"", msg: "Tracking number doesn't exists!"});
+    //     }
+    // });
+}
 
 // export const addnewContact = (req, res) => {
 //     let newContact = new Contact(req.body);

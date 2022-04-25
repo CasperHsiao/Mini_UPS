@@ -1,14 +1,12 @@
-import { addnewContact,
-    getContacts,
-    getContactWithID,
-    updateContact,
-    deleteContact,
+import {
     signupUser,
     loginUser,
     getYourOrder,
     getTrackingInfo,
     editAddress,
-    verifyAndResetPassword
+    verifyAndResetPassword,
+    googleLoginUrl,
+    getGoogleInfo
 } from '../controllers/main_controller';
 
 var path = require('path')
@@ -24,7 +22,7 @@ const routes = (app) => {
         .get((req, res) => {
             // res.sendFile(__dirname + "../../public/login.html");
             // res.sendFile( path.resolve("public/login.html"));
-            res.render("./pages/index", {login:true, error:false});
+            res.render("./pages/index", {login:true, googleLink: googleLoginUrl ,error:false});
         })
     
     // for the next('route') purpose
@@ -52,12 +50,11 @@ const routes = (app) => {
         // Post endpoint
         .post(verifyAndResetPassword);
     
-    // app.route('/hello')
-    //     .get((req, res) => {
-    //         // res.set("Content-Type", "application/json");
-    //         res.type("json");
-    //         res.send({ "msg" : "Hello" });
-    //     });
+    app.route('/authenticate')
+        .get(getGoogleInfo, getYourOrder)
+        
+        // Post endpoint
+        // .post(editAddress, getYourOrder);
 
     // app.route('/contact/:contactID')
     //     // get a specific contact
