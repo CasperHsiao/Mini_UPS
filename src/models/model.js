@@ -39,6 +39,7 @@ export const AccountSchema = new Schema({
     },
     Password: {
         type: String,
-        required: 'Enter a password'
+        required: 'Enter a password',
+        default: ""
     }
 });

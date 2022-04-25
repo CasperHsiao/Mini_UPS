@@ -8,7 +8,7 @@ body {
   margin-top: 10px;
 }
 
-#track-button, #login-btn, #signup-btn {
+#track-button, #login-btn, #signup-btn, #reset-btn {
     background-color: orange;
 }
 
@@ -38,4 +38,9 @@ footer, #cart-summary, #feedback textarea {
 
 .errorMsg {
   color: rgb(240, 9, 9);
+}
+
+.googlelogin {
+  background-color: orange;
+  display: flex;
 }

@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 import { AccountSchema, OrderSchema } from '../models/model';
 import {sendRequestToWorld} from '../../app';
 import { ToadScheduler, SimpleIntervalJob, AsyncTask, Task } from 'toad-scheduler';
+import * as queryString from 'query-string';
+import axios from 'axios';
 
 const Account = mongoose.model('Account', AccountSchema);
 const Order = mongoose.model('Order', OrderSchema);
@@ -15,7 +17,7 @@ export const signupUser = (req, res) => {
         }
 
         if (account) {
-            res.render("./pages/index", {login: true , error: true, msg: "Username already exists!"});
+            res.render("./pages/index", {login: true, googleLink: googleLoginUrl, error: true, msg: "Username already exists!"});
         }
         else{
             delete req.body['submitBtn']
@@ -36,29 +38,31 @@ export const loginUser = (req, res, next) => {
         if (err) {
             res.send(err);
         }
+        
+        req.app.set('Error', false);
+
         if (account) {
             if(account.Password == req.body.Password){
-                //next();
-                req.app.set('UseName', req.body.UserName);
+                req.app.set('UserName', req.body.UserName);
                 res.redirect('/personal-page/');
             }
             else{ // Incorrect password
-                res.render("./pages/index", {login: true , error: true, msg: "Incorrect password!"});
+                res.render("./pages/index", {login: true, googleLink: googleLoginUrl, error: true, msg: "Incorrect password!"});
             }
         }
         else{ // UserName doesn't exist
-            res.render("./pages/index", {login: true , error: true, msg: "Username doesn't exists!"});
+            res.render("./pages/index", {login: true, googleLink: googleLoginUrl, error: true, msg: "Username doesn't exists!"});
         }
     });
 }
 
 export const getYourOrder = (req, res) => {
     // Order.find({"UserName" : req.body.UserName}, (err, userOrders) => {
-    Order.find({"UserName" : req.app.get('UseName')}, (err, userOrders) => {
+    Order.find({"UserName" : req.app.get('UserName')}, (err, userOrders) => {
         if (err) {
             res.send(err);
         }
-        res.render("./pages/personal", {orders:userOrders });
+        res.render("./pages/personal", {orders:userOrders, reset:false, error:req.app.get('Error'), msg:"Incorrect address format"});
     });
 }
 
@@ -79,10 +83,11 @@ export const getTrackingInfo = (req, res) => {
 }
 
 export const editAddress = (req, res, next) => {
-    const regex = new RegExp('[0-9]+,[0-9]+');
+    const regex = new RegExp('^[0-9]+,[0-9]+$');
     let result = regex.test(req.body.DeliverAddress);
 
-    req.app.set('UseName', req.body.UserName);
+    req.app.set('UserName', req.body.UserName);
+    req.app.set('Error', !result);
 
     if(!result){
         next();
@@ -101,8 +106,28 @@ export const editAddress = (req, res, next) => {
     }
 }
 
+export const verifyAndResetPassword = (req, res, next) => {
+    let doc = Account.findOneAndUpdate({"UserName" : req.app.get('UserName'), "Password": req.body.OldPassword},
+                                {"Password": req.body.NewPassword},
+                                (err, TrackingOrder) => {
+        if (err) {
+            res.render("./pages/personal", {reset:true, error: true, msg: err});
+            return;
+        }
+
+        if(TrackingOrder){
+            req.app.set('Error', false);
+            res.redirect('/personal-page/');
+        }
+        else{
+            req.app.set('Error', true);
+            res.render("./pages/personal", {reset:true, error: true, msg: "Fail to update password"});
+        }
+    });
+}
+
 export async function addNewOrder(reqOrderJson, trackingNumber) {
-    const regex = new RegExp('[0-9]+,[0-9]+');
+    const regex = new RegExp('^[0-9]+,[0-9]+$');
     let result = regex.test(reqOrderJson.startDelivery.address);
 
     if(!result){
@@ -130,7 +155,7 @@ export async function addNewOrder(reqOrderJson, trackingNumber) {
 
 export async function editOrderAddress(trackingNumber, newAddress) {
     try {
-        const regex = new RegExp('[0-9]+,[0-9]+');
+        const regex = new RegExp('^[0-9]+,[0-9]+$');
         let result = regex.test(newAddress);
 
         if(!result){
@@ -201,6 +226,70 @@ export async function getOrderAndUpdateStatus(trackingNumber, status) {
 }
 
 
+// Google login Oauth
+const stringifiedParams = queryString.stringify({
+    // client_id: process.env.CLIENT_ID_GOES_HERE,
+    client_id: "116899395970-lgs9nmecgd8akqbheuich18ebhmd30jv.apps.googleusercontent.com",
+    redirect_uri: 'http://vcm-24914.vm.duke.edu:8000/authenticate',
+    scope: [
+      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+    ].join(' '), // space seperated string
+    response_type: 'code',
+    access_type: 'offline',
+    prompt: 'consent',
+});
+  
+export const googleLoginUrl = `https://accounts.google.com/o/oauth2/v2/auth?${stringifiedParams}`;
+  
+async function getAccessTokenFromCode(code) {
+    const { data } = await axios({
+      url: `https://oauth2.googleapis.com/token`,
+      method: 'post',
+      data: {
+        client_id: "116899395970-lgs9nmecgd8akqbheuich18ebhmd30jv.apps.googleusercontent.com",
+        client_secret: "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",
+        redirect_uri: 'http://vcm-24914.vm.duke.edu:8000/authenticate',
+        grant_type: 'authorization_code',
+        code,
+      },
+    });
+    // console.log(data); // { access_token, expires_in, token_type, refresh_token }
+    return data.access_token;
+};
+
+async function getGoogleUserInfo(access_token) {
+    const { data } = await axios({
+      url: 'https://www.googleapis.com/oauth2/v2/userinfo',
+      method: 'get',
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+      },
+    });
+    //console.log(data); // { id, email, given_name, family_name }
+    return data;
+  };
+
+  export const getGoogleInfo = async (req, res, next) => {
+    try{
+        const google_token = await getAccessTokenFromCode(req.query.code);
+        var user_data = await getGoogleUserInfo(google_token);
+
+        let newAccount = new Account({'UserName': user_data.email,
+                                    'Password': "/"});
+        newAccount.save((err, contact) => {
+            if (err) {
+                res.send(err);
+            }
+        });
+
+        req.app.set('UserName', user_data.email);
+        req.app.set('Error', false);
+    } catch (err) {
+        console.log(err);
+    }
+    res.redirect('/personal-page/');
+}
 
 // export const addnewContact = (req, res) => {
 //     let newContact = new Contact(req.body);

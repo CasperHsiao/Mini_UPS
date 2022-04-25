@@ -49,6 +49,7 @@
             <input type="submit" name="submitBtn" value="Signup" id="signup-btn">
           </div>
         </form>
+        <div><button name="googleLogin" type="submit" class="googlelogin"><a href= <%= googleLink %> >Google Login</a></button></div>
       <% } else { %>
         <form method="post">
           <div class="input-group">
@@ -59,7 +60,7 @@
 
         <!-- <ul> -->
           <% if(order){ %>
-            <label>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID: <%= order.WarehouseID %> Status: <%= order.Status %> </label>
+            <label>UserName: <%= order.UserName %>, TrackNum: <%= order.TrackNum %>, DeliverAddress: (<%= order.DeliverAddress_X %>, <%= order.DeliverAddress_Y %>), Item: <%= order.ItemType %>, Status: <%= order.Status %>, Priority: <%= order.Priority %> </label>
           <% } %>
         <!-- </ul> -->
       <% } %>

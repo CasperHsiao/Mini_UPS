@@ -1,13 +1,12 @@
-import { addnewContact,
-    getContacts,
-    getContactWithID,
-    updateContact,
-    deleteContact,
+import {
     signupUser,
     loginUser,
     getYourOrder,
     getTrackingInfo,
-    editAddress
+    editAddress,
+    verifyAndResetPassword,
+    googleLoginUrl,
+    getGoogleInfo
 } from '../controllers/main_controller';
 
 var path = require('path')
@@ -23,7 +22,7 @@ const routes = (app) => {
         .get((req, res) => {
             // res.sendFile(__dirname + "../../public/login.html");
             // res.sendFile( path.resolve("public/login.html"));
-            res.render("./pages/index", {login:true, error:false});
+            res.render("./pages/index", {login:true, googleLink: googleLoginUrl ,error:false});
         })
     
     // for the next('route') purpose
@@ -43,23 +42,19 @@ const routes = (app) => {
         // Post endpoint
         .post(editAddress, getYourOrder);
 
-    // app.route('/contact')
-    //     .get((req,res, next) => {
-    //         // middleware
-    //         console.log(`Request from: ${req.originalUrl}`)
-    //         console.log(`Request type: ${req.method}`)
-    //         next();
-    //     }, getContacts)
+    app.route('/reset')
+        .get((req, res) => {
+            res.render("./pages/personal", {reset:true, error:false});
+        })
         
-    //     // Post endpoint
-    //     .post(addnewContact);
+        // Post endpoint
+        .post(verifyAndResetPassword);
     
-    // app.route('/hello')
-    //     .get((req, res) => {
-    //         // res.set("Content-Type", "application/json");
-    //         res.type("json");
-    //         res.send({ "msg" : "Hello" });
-    //     });
+    app.route('/authenticate')
+        .get(getGoogleInfo)
+        
+        // Post endpoint
+        // .post(editAddress, getYourOrder);
 
     // app.route('/contact/:contactID')
     //     // get a specific contact

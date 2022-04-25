@@ -9,10 +9,16 @@ use(database);
 
 // Create a new collection.
 // db.createCollection(collection);
+db.accounts.insertMany([{UserName:"zxc", Password:"as"},
+                      {UserName:"asd", Password:"qw"}
+])
 db.orders.insertMany([{UserName:"zxc", TrackNum:123, WarehouseID:1, Status:"preparing"},
                       {UserName:"zxc", TrackNum:124, WarehouseID:1, Status:"preparing"},
                       {UserName:"zxc", TrackNum:125, WarehouseID:2, Status:"preparing"},
-                      {UserName:"zxc", TrackNum:126, WarehouseID:2, Status:"preparing"}
+                      {UserName:"zxc", TrackNum:126, WarehouseID:2, Status:"preparing"},
+                      {UserName:"thumberide@gmail.com", TrackNum:127, WarehouseID:2, Status:"preparing"},
+                      {UserName:"thumberide@gmail.com", TrackNum:128, WarehouseID:3, Status:"preparing"},
+                      {UserName:"harrisonku0115@gmail.com", TrackNum:130, WarehouseID:3, Status:"preparing"}
 ])
 
 // The prototype form to create a collection:
