@@ -60,7 +60,7 @@
 
         <!-- <ul> -->
           <% if(order){ %>
-            <label>  UserName: <%= order.UserName %> TrackNum: <%= order.TrackNum %> WarehouseID: <%= order.WarehouseID %> Status: <%= order.Status %> </label>
+            <label>UserName: <%= order.UserName %>, TrackNum: <%= order.TrackNum %>, DeliverAddress: (<%= order.DeliverAddress_X %>, <%= order.DeliverAddress_Y %>), Item: <%= order.ItemType %>, Status: <%= order.Status %>, Priority: <%= order.Priority %> </label>
           <% } %>
         <!-- </ul> -->
       <% } %>

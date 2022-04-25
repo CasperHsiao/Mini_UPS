@@ -284,6 +284,7 @@ async function getGoogleUserInfo(access_token) {
         });
 
         req.app.set('UserName', user_data.email);
+        req.app.set('Error', false);
     } catch (err) {
         console.log(err);
     }
