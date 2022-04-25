@@ -39,3 +39,8 @@ footer, #cart-summary, #feedback textarea {
 .errorMsg {
   color: rgb(240, 9, 9);
 }
+
+.googlelogin {
+  background-color: orange;
+  display: flex;
+}
